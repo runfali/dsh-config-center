@@ -92,54 +92,57 @@ function ManagerPage({ scope, onClose }) {
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
   return (
-    <div className="cc-page">
-      <header className="cc-page-head">
-        <div className="cc-page-title">
-          <ExtensionsIcon size={18} />
-          <h1>扩展管理中心</h1>
-        </div>
-        <div className="cc-tabs cc-tabs-page" role="tablist">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              className="cc-tab"
-              data-active={tab.id === active ? "true" : undefined}
-              onClick={() => setActive(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" className="cc-page-close" title="关闭 (Esc)" onClick={onClose}>
-          ✕
-        </button>
-      </header>
-      <main className="cc-page-body">
-        {needsRestart || commentLost ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-            {commentLost ? (
-              <div className="cc-warnbar" role="status">
-                <span>本次写入未保留 patch 文件中/尾部注释（头部注释已保留），原文备份于 cordis.patch.yml.bak。</span>
-              </div>
-            ) : null}
-            {needsRestart ? (
-              <div className="cc-warnbar" role="status">
-                <span>配置已写入 — 重启 Profile 后生效：</span>
-                <code>dsh --profile web 重启</code>
-              </div>
-            ) : null}
+    <div className="cc-dialog-overlay" onClick={onClose} role="presentation">
+      <div className="cc-dialog-mask" />
+      <div className="cc-dialog-panel" role="dialog" aria-modal="true" aria-label="扩展管理中心" onClick={(e) => e.stopPropagation()}>
+        <header className="cc-page-head">
+          <div className="cc-page-title">
+            <ExtensionsIcon size={18} />
+            <h1>扩展管理中心</h1>
           </div>
-        ) : null}
-        <div className="cc-section cc-section-page">
-          {active === "plugins" && (
-            <PluginsTab onNeedsRestart={() => setNeedsRestart(true)} onCommentLost={() => setCommentLost(true)} />
-          )}
-          {active === "skills" && <SkillsTab />}
-          {active === "mcp" && <McpTab scope={scope} />}
-        </div>
-      </main>
+          <div className="cc-tabs cc-tabs-page" role="tablist">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                className="cc-tab"
+                data-active={tab.id === active ? "true" : undefined}
+                onClick={() => setActive(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="cc-page-close" title="关闭 (Esc)" onClick={onClose}>
+            ✕
+          </button>
+        </header>
+        <main className="cc-page-body">
+          {needsRestart || commentLost ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+              {commentLost ? (
+                <div className="cc-warnbar" role="status">
+                  <span>本次写入未保留 patch 文件中/尾部注释（头部注释已保留），原文备份于 cordis.patch.yml.bak。</span>
+                </div>
+              ) : null}
+              {needsRestart ? (
+                <div className="cc-warnbar" role="status">
+                  <span>配置已写入 — 重启 Profile 后生效：</span>
+                  <code>dsh --profile web 重启</code>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="cc-section cc-section-page">
+            {active === "plugins" && (
+              <PluginsTab onNeedsRestart={() => setNeedsRestart(true)} onCommentLost={() => setCommentLost(true)} />
+            )}
+            {active === "skills" && <SkillsTab />}
+            {active === "mcp" && <McpTab scope={scope} />}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

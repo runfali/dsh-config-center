@@ -78,8 +78,10 @@ export const CSS = `
 .cc-foot-entry.is-wide{padding:0 4px}
 .cc-foot-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* ---- 全屏管理页（shell.overlay）---- */
-.cc-page{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-size:14px}
+/* ---- 管理中心弹窗（shell.overlay，对齐官方 Settings 弹窗视觉，尺寸放大）---- */
+.cc-dialog-overlay{z-index:1000;justify-content:center;align-items:center;display:flex;position:fixed;inset:0}
+.cc-dialog-mask{background:var(--dsw-alias-bg-mask-1);backdrop-filter:var(--dsw-mask-blur);position:absolute;inset:0}
+.cc-dialog-panel{z-index:1;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);width:min(1240px,calc(100vw - 64px));height:min(880px,100vh - 64px);box-shadow:var(--dsw-shadow-lv3);border-radius:24px;display:flex;flex-direction:column;position:relative;overflow:hidden;font-size:14px}
 .cc-page-head{flex:none;display:flex;align-items:center;gap:24px;padding:18px 32px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .cc-page-title{display:flex;align-items:center;gap:10px;padding-bottom:14px}
 .cc-page-title h1{margin:0;font-size:17px;font-weight:600;line-height:24px}
