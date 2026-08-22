@@ -5,7 +5,7 @@
 | Tab | 能力 | 生效方式 |
 |---|---|---|
 | **插件** | cordis.patch.yml 逻辑行的新增 / 编辑（name+config JSON）/ 禁用启用 / 删除；来源标注（直挂/insert块/group子行）；contentHash 并发围栏 | 写盘后提示重启 Profile |
-| **Skills** | 多根聚合扫描（rank 100-500）；模型可见/用户可调 frontmatter 开关；删除（realpath 越界防护）；模板新增 | watcher 热生效，无需重启 |
+| **Skills** | 多根聚合扫描（rank 100-500）；模型可见/用户可调 frontmatter 开关；删除（realpath 越界防护）；**SKILL.md 全文编辑-保存**（hash 围栏、只读根只读展示） | 编辑保存后 watcher 热生效 |
 | **MCP** | server 新增 / 编辑（stdio+streamable-http）/ 停用启用 / 删除；连接状态徽标（connected/tools 数）；一键探活（60s 超时） | settings live 即时生效 |
 
 ## 安装 / 卸载（由发哥执行）
@@ -57,7 +57,7 @@ curl -s http://127.0.0.1:3080/api/config-center/listRows | head -c 400
 UI 冒烟（浏览器 → 设置 → 扩展中心）：
 
 1. **插件 Tab**：新增 `id: demo-plugin, name: <任意绝对路径或包名>` → 列表出现 → 黄条提示重启 → 重启后仍存在 → 删除。
-2. **Skills Tab**：列表出现现有技能 → 对 user 根技能切换「模型可见」→ 数秒内生效（无需重启）→ 模板新增一个 → `~/.dsh/skills/<id>/SKILL.md` 出现骨架。
+2. **Skills Tab**：列表出现现有技能 → 对 user 根技能切换「模型可见」→ 数秒内生效（无需重启）→ 点「编辑」改 SKILL.md 内容 → 保存 → 磁盘文件已更新且热生效。
 3. **MCP Tab**：新增 stdio server（如 `command: npx, args: -y @modelcontextprotocol/server-everything`）→ 保存后徽标变「已连接 · N 工具」→ 探活返回工具清单 → 停用 → 徽标「已停用」且工具下线 → 删除。
 4. **secret 回归**：编辑含 env 的 MCP 条目，不填值直接保存 → `~/.dsh/settings.yaml` 中原值不变（留空=保持）。
 
@@ -107,5 +107,5 @@ cp ~/.dsh/profiles/web/cordis.patch.yml.bak ~/.dsh/profiles/web/cordis.patch.yml
 - 插件改动需重启 Profile（cordis 组合在启动时装载，无热重载）；Skill/MCP 即时生效。
 - bundle 来源安装的插件（profile package.json bundles）只读展示，需管理对应安装源。
 - MCP 仅桥接 Tools（Resources/Prompts 为上游 dsh-mcp-client 的既定边界）。
-- Skill 上传 zip / git clone 导入未实现（模板创建已可用）。
+- Skill 不提供 UI 新增（子目录/脚本结构复杂，请在磁盘创建后点「刷新」）；上传 zip / git clone 导入未实现。
 - UI 文案当前为中文单语。

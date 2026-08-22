@@ -11,9 +11,9 @@
  *   400 user-dsh      <dshHome>/skills               （可写）
  *   500 user-agents   <agentsHome>/skills            （只读）
  */
-import { readFile, readdir, rm, stat, mkdir, writeFile } from "node:fs/promises"
-import { realpath } from "node:fs/promises"
+import { chmod, readFile, readdir, realpath, rename, rm, stat, mkdir, writeFile } from "node:fs/promises"
 import { load as yamlLoad, dump as yamlDump } from "js-yaml"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 
 const SKILL_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -186,6 +186,55 @@ export async function removeSkill(spec, target) {
   if (!(await ensureInside(spec.root, base))) throw new Error("path escapes the skills root")
   await rm(base, { recursive: true, force: true })
   return { ok: true }
+}
+
+/** 解析一个 skill 的 SKILL.md / 平铺 md 绝对路径（含存在性与越界校验） */
+async function skillFilePath(spec, target) {
+  const file =
+    target.source === "flat" ? join(spec.root, `${target.id}.md`) : join(spec.root, target.id, "SKILL.md")
+  try {
+    await stat(file)
+  } catch {
+    throw new Error(`skill file not found: ${target.id}`)
+  }
+  if (!(await ensureInside(spec.root, file))) throw new Error("path escapes the skills root")
+  return file
+}
+
+/**
+ * 读 SKILL.md 全文（编辑器数据源）。
+ * @returns {{content:string, hash:string, path:string}}
+ */
+export async function readSkillFile(spec, target, maxBytes = 1 << 20) {
+  const file = await skillFilePath(spec, target)
+  const buf = await readFile(file)
+  if (buf.length > maxBytes) throw new Error(`skill file exceeds ${maxBytes} bytes — edit it on disk directly`)
+  return {
+    content: buf.toString("utf8"),
+    hash: createHash("sha256").update(buf).digest("hex").slice(0, 16),
+    path: file,
+  }
+}
+
+/**
+ * 保存 SKILL.md 全文。expectedHash 非空时做并发围栏（他人先改过则拒绝）；
+ * 原子替换写入，dsh-skill-filesystem 的 watcher 自动热生效。
+ * @returns {{ok:true, hash:string}} 新内容 hash（供下一轮编辑围栏）
+ */
+export async function writeSkillFile(spec, target, content, expectedHash) {
+  const file = await skillFilePath(spec, target)
+  const current = await readFile(file)
+  const currentHash = createHash("sha256").update(current).digest("hex").slice(0, 16)
+  if (expectedHash !== null && expectedHash !== undefined && expectedHash !== "" && expectedHash !== currentHash) {
+    throw Object.assign(new Error("file changed since you opened it — reload and re-apply"), { status: 409 })
+  }
+  const body = Buffer.from(String(content ?? ""), "utf8")
+  if (body.length > 1 << 20) throw new Error("content exceeds 1 MiB limit")
+  const tmp = `${file}.cc-tmp-${Date.now()}`
+  await writeFile(tmp, body, { mode: 0o600 })
+  await rename(tmp, file)
+  await chmod(file, 0o600).catch(() => {})
+  return { ok: true, hash: createHash("sha256").update(body).digest("hex").slice(0, 16) }
 }
 
 /**

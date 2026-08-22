@@ -12,7 +12,7 @@
  *  T2 mcp-center settings namespace + schema
  *  T3 isolate 动态挂载 dsh-mcp-client + rebuild + testMcp + 状态上报
  *  T4 文件 RPC：listRows/addRow/removeRow/updateRow/toggleRow/writePatch
- *  T5 Skills RPC：listSkills/setSkillFlags/removeSkill/createSkillFromTemplate
+ *  T5 Skills RPC：listSkills/setSkillFlags/removeSkill/readSkillFile/writeSkillFile
  */
 import z from "@deepseek-ai/schemastery"
 import os from "node:os"
@@ -33,10 +33,10 @@ import {
   validateRows,
   writePatchAtomic,
 } from "./patch-editor.js"
-import { createSkillFromTemplate, listSkills, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
+import { listSkills, readSkillFile, removeSkill, setSkillFlags, skillRoots, writeSkillFile } from "./skills-editor.js"
 import { installBundle, listBundles, removeBundle, resolveProfileDir } from "./bundle-manager.js"
 
-export { createSkillFromTemplate, listSkills, parseSkillMd, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
+export { listSkills, parseSkillMd, readSkillFile, removeSkill, setSkillFlags, skillRoots, writeSkillFile } from "./skills-editor.js"
 export { installBundle, listBundles, readBundleState, removeBundle, resolveProfileDir } from "./bundle-manager.js"
 
 export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
@@ -358,12 +358,20 @@ export function apply(ctx, config) {
       if (!root) throw new Error(`unknown root "${args?.rootId}"`)
       return removeSkill(root, { id: String(args?.id), source: args?.source })
     })
-    reg("createSkill", async (args) => {
-      const root = findRoot(String(args?.rootId ?? "user-dsh"))
+    // SKILL.md 编辑-保存（发哥：skill 子目录/脚本多，不做新增，只做文件编辑）
+    reg("readSkillFile", async (args) => {
+      const root = findRoot(String(args?.rootId))
       if (!root) throw new Error(`unknown root "${args?.rootId}"`)
-      return createSkillFromTemplate(
-        { id: String(args?.id), description: args?.description, whenToUse: args?.whenToUse },
+      return readSkillFile(root, { id: String(args?.id), source: args?.source }, current().maxPatchBytes ?? 1 << 20)
+    })
+    reg("writeSkillFile", async (args) => {
+      const root = findRoot(String(args?.rootId))
+      if (!root) throw new Error(`unknown root "${args?.rootId}"`)
+      return writeSkillFile(
         root,
+        { id: String(args?.id), source: args?.source },
+        String(args?.content ?? ""),
+        args?.expectedHash === undefined ? null : String(args?.expectedHash),
       )
     })
 

@@ -1,11 +1,12 @@
 /**
- * Skills Tab — 多根聚合列表 + frontmatter 开关（热生效）+ 模板新增
+ * Skills Tab — 多根聚合列表 + frontmatter 开关（热生效）+ SKILL.md 编辑-保存
  * P1-3 约定：开关 = SKILL.md frontmatter 的 disable-model-invocation /
  * user-invocable；写操作仅限 writable 根（user-dsh）。
+ * 发哥指令：不做新增（skill 子目录/脚本多，新增不好操作）；SKILL.md 必须可编辑-保存。
  */
 import React, { useEffect, useState } from "react"
 import { confirmDialog, errText, rpc } from "./rpc.js"
-import { Button, Drawer, ErrorBar, Field, TextInput } from "./ui.jsx"
+import { Button, Drawer, ErrorBar, Field } from "./ui.jsx"
 
 const ROOT_LABEL = {
   "project-dsh": "项目 .dsh",
@@ -17,7 +18,7 @@ const ROOT_LABEL = {
 export function SkillsTab() {
   const [skills, setSkills] = useState(null)
   const [error, setError] = useState(null)
-  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState(null) // {skill}
   const [busyId, setBusyId] = useState(null)
 
   async function refresh() {
@@ -74,10 +75,10 @@ export function SkillsTab() {
     <div>
       <ErrorBar message={error} />
       <div className="cc-row-actions" style={{ margin: "4px 0 10px" }}>
-        <span className="cc-card-sub">frontmatter 开关由 watcher 热生效，无需重启。</span>
-        <Button kind="primary" onClick={() => setCreating(true)}>
-          新增 Skill
-        </Button>
+        <span className="cc-card-sub">
+          开关与 SKILL.md 编辑均由 watcher 热生效；新增请在磁盘创建目录后点「刷新」。
+        </span>
+        <Button onClick={refresh}>刷新</Button>
       </div>
       {!skills ? null : skills.length === 0 ? (
         <p className="cc-empty">所有技能根均为空。</p>
@@ -112,15 +113,16 @@ export function SkillsTab() {
                     {s.userInvocable ? "可调" : "禁调"}
                   </Button>
                 </td>
-                <td>{s.description ?? "—"}</td>
+                <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.description ?? "—"}</td>
                 <td>
-                  {s.rootWritable ? (
-                    <Button kind="danger" disabled={busyId === s.id + "del"} onClick={() => del(s)}>
-                      删除
-                    </Button>
-                  ) : (
-                    <span className="cc-hint">只读根</span>
-                  )}
+                  <div className="cc-row-actions">
+                    <Button onClick={() => setEditing({ skill: s })}>编辑</Button>
+                    {s.rootWritable ? (
+                      <Button kind="danger" disabled={busyId === s.id + "del"} onClick={() => del(s)}>
+                        删除
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -128,11 +130,12 @@ export function SkillsTab() {
         </table>
       )}
 
-      {creating ? (
-        <CreateDrawer
-          onClose={() => setCreating(false)}
+      {editing ? (
+        <SkillFileEditor
+          skill={editing.skill}
+          onClose={() => setEditing(null)}
           onSaved={() => {
-            setCreating(false)
+            setEditing(null)
             refresh()
           }}
         />
@@ -141,51 +144,91 @@ export function SkillsTab() {
   )
 }
 
-function CreateDrawer({ onClose, onSaved }) {
-  const [draft, setDraft] = useState({ id: "", description: "", whenToUse: "" })
-  const [err, setErr] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const idInvalid = !/^[a-z0-9][a-z0-9-]*$/.test(draft.id)
+/** SKILL.md 编辑-保存抽屉：全文 textarea + hash 围栏 + 只读根只读展示 */
+function SkillFileEditor({ skill, onClose, onSaved }) {
+  const [state, setState] = useState({ loading: true, content: "", hash: "", path: "", error: null })
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    rpc("readSkillFile", { rootId: skill.rootId, id: skill.id, source: skill.source })
+      .then((r) => {
+        if (!alive) return
+        setState({ loading: false, content: r.content ?? "", hash: r.hash ?? "", path: r.path ?? "", error: null })
+      })
+      .catch((e) => {
+        if (!alive) return
+        setState({ loading: false, content: "", hash: "", path: "", error: errText(e) })
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  async function save() {
+    setSaving(true)
+    setSaveErr(null)
+    try {
+      const r = await rpc("writeSkillFile", {
+        rootId: skill.rootId,
+        id: skill.id,
+        source: skill.source,
+        content: state.content,
+        expectedHash: state.hash,
+      })
+      setState((s) => ({ ...s, hash: r.hash }))
+      setDirty(false)
+      onSaved?.()
+    } catch (e) {
+      setSaveErr(errText(e))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Drawer
-      title="新增 Skill（模板骨架）"
+      title={`编辑 ${skill.id} — SKILL.md`}
       onClose={onClose}
       footer={
         <>
-          <ErrorBar message={err} />
-          <Button onClick={onClose}>取消</Button>
-          <Button
-            kind="primary"
-            disabled={busy || idInvalid || !draft.description.trim()}
-            onClick={async () => {
-              setBusy(true)
-              setErr(null)
-              try {
-                await rpc("createSkill", { ...draft, rootId: "user-dsh" })
-                onSaved()
-              } catch (e) {
-                setErr(errText(e))
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
-            {busy ? "创建中…" : "创建"}
+          <ErrorBar message={saveErr} />
+          <span className="cc-hint" style={{ marginRight: "auto" }}>
+            {state.loading ? "" : dirty ? "有未保存改动 · " : "已保存 · "}watcher 热生效
+          </span>
+          <Button onClick={onClose}>{dirty ? "取消" : "关闭"}</Button>
+          <Button kind="primary" disabled={!dirty || saving || state.loading || !!state.error} onClick={save}>
+            {saving ? "保存中…" : "保存"}
           </Button>
         </>
       }
     >
-      <Field label="id（kebab-case，即目录名与 name）" invalid={idInvalid} invalidText="需匹配 ^[a-z0-9][a-z0-9-]*$">
-        <TextInput value={draft.id} onChange={(v) => setDraft((d) => ({ ...d, id: v }))} invalid={idInvalid} placeholder="my-skill" />
-      </Field>
-      <Field label="description（必填）" hint="模型选择技能时依据的说明">
-        <TextInput value={draft.description} onChange={(v) => setDraft((d) => ({ ...d, description: v }))} placeholder="做什么用的…" />
-      </Field>
-      <Field label="whenToUse（可选）" hint="何时使用的提示">
-        <TextInput value={draft.whenToUse} onChange={(v) => setDraft((d) => ({ ...d, whenToUse: v }))} />
-      </Field>
-      <p className="cc-hint">创建后可在 ~/.dsh/skills/&lt;id&gt;/SKILL.md 中补充正文。</p>
+      {state.loading ? (
+        <p className="cc-empty">加载中…</p>
+      ) : state.error ? (
+        <ErrorBar message={state.error} />
+      ) : (
+        <>
+          <Field label={state.path} hint="frontmatter 与正文均可编辑；保存即热生效">
+            <textarea
+              className="cc-textarea"
+              style={{ minHeight: 420, fontFamily: "ui-monospace,SFMono-Regular,Menlo,monospace", fontSize: 12.5 }}
+              value={state.content}
+              spellCheck={false}
+              readOnly={!skill.rootWritable}
+              onChange={(e) => {
+                setState((s) => ({ ...s, content: e.target.value }))
+                setDirty(true)
+              }}
+            />
+          </Field>
+          {!skill.rootWritable ? (
+            <p className="cc-warnbar">该技能位于只读根（{ROOT_LABEL[skill.rootId] ?? skill.rootId}），仅可查看。</p>
+          ) : null}
+        </>
+      )}
     </Drawer>
   )
 }

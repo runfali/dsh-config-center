@@ -136,3 +136,55 @@ test("listSkills aggregates across roots with provenance", async (t) => {
     assert.equal(skills[0].rootWritable, true)
   })
 })
+
+// ---- SKILL.md 编辑-保存（发哥指令：不做新增，只做编辑保存）----
+import { createHash } from "node:crypto"
+import { readSkillFile, writeSkillFile } from "../src/skills-editor.js"
+
+const sha16 = (buf) => createHash("sha256").update(buf).digest("hex").slice(0, 16)
+
+test("readSkillFile returns content+hash; writeSkillFile round-trips with hash fence", async (t) => {
+  await withTempDir(t, async (dir) => {
+    await mkdir(join(dir, "s1"), { recursive: true })
+    const file = join(dir, "s1", "SKILL.md")
+    await writeFile(file, "---\nname: s1\ndescription: D\n---\n\nBODY v1")
+    const spec = { id: "t", root: dir, writable: true, rank: 400 }
+    const r1 = await readSkillFile(spec, { id: "s1", source: "bundle" })
+    assert.ok(r1.content.includes("BODY v1"))
+    assert.equal(r1.hash, sha16(Buffer.from(await readFile(file))))
+    // 正确围栏：写入成功并返回新 hash
+    const w = await writeSkillFile(spec, { id: "s1", source: "bundle" }, r1.content.replace("v1", "v2"), r1.hash)
+    assert.equal(w.hash, sha16(Buffer.from(await readFile(file))))
+    const r2 = await readSkillFile(spec, { id: "s1", source: "bundle" })
+    assert.ok(r2.content.includes("BODY v2"))
+    // 过期围栏：409
+    await assert.rejects(
+      () => writeSkillFile(spec, { id: "s1", source: "bundle" }, "stale write", r1.hash),
+      /changed since/,
+    )
+  })
+})
+
+test("writeSkillFile: null expectedHash bypasses fence (force save)", async (t) => {
+  await withTempDir(t, async (dir) => {
+    await mkdir(join(dir, "s1"), { recursive: true })
+    await writeFile(join(dir, "s1", "SKILL.md"), "A")
+    const spec = { id: "t", root: dir, writable: true }
+    const w = await writeSkillFile(spec, { id: "s1", source: "bundle" }, "B", null)
+    assert.equal(w.ok, true)
+    assert.equal(await readFile(join(dir, "s1", "SKILL.md"), "utf8"), "B")
+  })
+})
+
+test("readSkillFile/writeSkillFile refuse paths outside root and flat files work", async (t) => {
+  await withTempDir(t, async (dir) => {
+    await writeFile(join(dir, "flat-skill.md"), "flat body")
+    const spec = { id: "t", root: dir, writable: true }
+    const r = await readSkillFile(spec, { id: "flat-skill", source: "flat" })
+    assert.equal(r.content, "flat body")
+    await writeSkillFile(spec, { id: "flat-skill", source: "flat" }, "flat v2", r.hash)
+    assert.equal(await readFile(join(dir, "flat-skill.md"), "utf8"), "flat v2")
+    // 不存在的 skill 报 not found
+    await assert.rejects(() => readSkillFile(spec, { id: "ghost", source: "bundle" }), /not found/)
+  })
+})
