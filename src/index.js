@@ -17,8 +17,10 @@
 import z from "@deepseek-ai/schemastery"
 import { settingsNamespace } from "@deepseek-ai/dsh-settings"
 import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
+import { createSupervisor } from "./mcp-supervisor.js"
 
 export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
+export { buildClientConfig, createSupervisor } from "./mcp-supervisor.js"
 
 export const name = "config-center"
 export const inject = ["webServer", "settings"]
@@ -134,8 +136,10 @@ function registerRpc(ctx, method, handler) {
 
 export function apply(ctx, config) {
   let current = () => config
+  /** mcp-center 能力面（inject settings 就绪后填充） */
+  let mcpApi = null
 
-  // ---- T2: mcp-center settings namespace（live；watch 在 T3 接 rebuild）----
+  // ---- T2/T3: mcp-center settings namespace + 动态挂载 supervisor ----
   ctx.inject(["settings"], (c) => {
     const scope = c.settings.register(MCP_SETTINGS_NS, McpCenterSchema, {
       applies: "live",
@@ -145,15 +149,18 @@ export function apply(ctx, config) {
         if (problem) throw new Error(problem)
       },
     })
+    const supervisor = createSupervisor(ctx, ctx.logger)
+    mcpApi = { statusList: () => supervisor.statusList(scope.get()), testMcp: (c2) => supervisor.testMcp(c2) }
+    // dispose：随 fiber 拆掉全部子挂载与探针
+    ctx.effect(() => supervisor.dispose(), "config-center: supervisor teardown")
+    // 初始同步 + 后续变更重建（resolved 值含 secret 实值，直接透传 dsh-mcp-client）
+    Promise.resolve(supervisor.rebuild(scope.get())).catch((err) =>
+      ctx.logger.warn("config-center: initial mcp rebuild failed:", err?.message ?? err),
+    )
     ctx.effect(
       () =>
-        scope.watch((next, prev) => {
-          // T3 将在此触发 isolate 子树 diff 重建
-          ctx.logger.info(
-            "config-center: mcp-center section changed (%s -> %s entries)",
-            Object.keys(prev ?? {}).length,
-            Object.keys(next ?? {}).length,
-          )
+        scope.watch((next) => {
+          return supervisor.rebuild(next)
         }),
       "config-center: watch mcp-center",
     )
@@ -170,6 +177,12 @@ export function apply(ctx, config) {
       ts: Date.now(),
       patchPath: current().patchPath,
     }))
+    // T3：MCP 状态徽标数据源 + 探活
+    reg("mcpStatus", async () => ({ servers: mcpApi ? mcpApi.statusList() : [], available: !!mcpApi }))
+    reg("testMcp", async (args) => {
+      if (!mcpApi) throw Object.assign(new Error("settings not ready"), { status: 503 })
+      return mcpApi.testMcp(args?.candidate)
+    })
     return () =>
       handlers.forEach((fn) => {
         try {
