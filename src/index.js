@@ -16,10 +16,12 @@
  */
 import z from "@deepseek-ai/schemastery"
 import { settingsNamespace } from "@deepseek-ai/dsh-settings"
+import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
+
+export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
 
 export const name = "config-center"
 export const inject = ["webServer", "settings"]
-
 /** settings namespace：MCP server 配置（T2） */
 export const MCP_SETTINGS_NS = settingsNamespace("mcp-center")
 
@@ -132,6 +134,30 @@ function registerRpc(ctx, method, handler) {
 
 export function apply(ctx, config) {
   let current = () => config
+
+  // ---- T2: mcp-center settings namespace（live；watch 在 T3 接 rebuild）----
+  ctx.inject(["settings"], (c) => {
+    const scope = c.settings.register(MCP_SETTINGS_NS, McpCenterSchema, {
+      applies: "live",
+      // 跨字段校验：dict key 即 serverName，schema 无法表达 key 约束
+      validate: (value) => {
+        const problem = validateMcpDoc(value)
+        if (problem) throw new Error(problem)
+      },
+    })
+    ctx.effect(
+      () =>
+        scope.watch((next, prev) => {
+          // T3 将在此触发 isolate 子树 diff 重建
+          ctx.logger.info(
+            "config-center: mcp-center section changed (%s -> %s entries)",
+            Object.keys(prev ?? {}).length,
+            Object.keys(next ?? {}).length,
+          )
+        }),
+      "config-center: watch mcp-center",
+    )
+  })
 
   // ---- T4/T5 阶段在此挂 listRows/addRow/... RPC（骨架期仅 ping）----
 
