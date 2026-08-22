@@ -115,15 +115,21 @@ function isInstruction(row) {
 const ENTRY_ID = /^[a-z0-9][a-z0-9-]*$/
 const ENTRY_FIELDS = ["id", "name", "config", "disabled", "group", "isolate"]
 
-/** 单个逻辑 entry 的 shape 校验 */
-function validateEntry(row) {
+/**
+ * 单个逻辑 entry 的 shape 校验。
+ * 宽松模式（全表校验用）：loader 支持白名单之外的高级字段（inject/provide/
+ * intercept...），round-trip 必须保真 —— 未知字段放行。
+ */
+function validateEntry(row, strict = false) {
   if (typeof row !== "object" || row === null || Array.isArray(row)) return "entry must be an object"
   if (typeof row.id !== "string" || !ENTRY_ID.test(row.id)) {
     return `entry id "${row?.id}" must match /^[a-z0-9][a-z0-9-]*$/`
   }
   if (typeof row.name !== "string" || row.name.trim() === "") return `entry "${row.id}" name is required`
-  for (const key of Object.keys(row)) {
-    if (!ENTRY_FIELDS.includes(key)) return `unknown field "${key}" in entry "${row.id}"`
+  if (strict) {
+    for (const key of Object.keys(row)) {
+      if (!ENTRY_FIELDS.includes(key)) return `unknown field "${key}" in entry "${row.id}"`
+    }
   }
   if (row.group && !Array.isArray(row.config)) return `group entry "${row.id}" must carry a config array`
   return null
@@ -163,7 +169,7 @@ export function containsJsTags(rows) {
   }
 }
 
-/** 全量校验：每个逻辑 entry shape + 全局 id 唯一 + 动态表达式检测 */
+/** 全量校验：每个逻辑 entry shape（宽松）+ 全局 id 唯一 + 动态表达式检测 */
 export function validateRows(rows) {
   if (!Array.isArray(rows)) return "document must be an array"
   const seen = new Set()
@@ -179,9 +185,10 @@ export function validateRows(rows) {
 
 // ---------------------------------------------------------------- 行操作
 
-/** 新增：追加为一个独立 insert 指令块（loader 官方语义，不扰动既有结构） */
+/** 新增：追加为一个独立 insert 指令块（loader 官方语义，不扰动既有结构）。
+ *  UI 新增的行字段严格受限（防注入面）；全表校验走宽松模式保真既有高级字段。 */
 export function addRow(rows, row) {
-  const problem = validateEntry(row)
+  const problem = validateEntry(row, true)
   if (problem) throw new Error(problem)
   if (containsJsTags([row])) throw new Error("row contains dynamic expressions — not allowed via UI")
   return [...(rows ?? []), { insert: [row] }]

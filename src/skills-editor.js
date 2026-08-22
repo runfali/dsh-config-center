@@ -211,8 +211,9 @@ export async function createSkillFromTemplate(spec, template) {
 async function ensureExistsAndInside(parent, child) {
   try {
     const rp = await realpath(parent)
-    const resolved = child.startsWith(parent) ? child : join(rp, child)
-    return resolved.startsWith(rp + "/")
+    const base = child.slice(child.lastIndexOf("/") + 1)
+    const resolved = join(rp, base)
+    return resolved.startsWith(rp + "/") && resolved !== rp
   } catch {
     return false
   }

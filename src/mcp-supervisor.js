@@ -38,6 +38,11 @@ export function createSupervisor(ctx, logger) {
   /** serverName -> { state: 'connecting'|'connected'|'error'|'disabled', tools, error?, since } */
   const status = new Map()
   let disposed = false
+  /** rebuild 串行队列（防 watch 高频触发时 teardown/mount 交错） */
+  let rebuildQueue = Promise.resolve()
+  /** 已请求但尚未被队列消费的最新文档（合并突发写入） */
+  let pendingDoc
+  let draining = false
 
   function setState(name, patch) {
     const prev = status.get(name) ?? { state: "connecting", tools: 0, since: Date.now() }
@@ -115,11 +120,32 @@ export function createSupervisor(ctx, logger) {
   }
 
   /**
-   * diff 重建：desired = enabled 条目。配置变化的条目 teardown 后重挂。
+   * diff 重建（串行化 + 突发合并）：desired = enabled 条目。
+   * 配置变化的条目 teardown 后重挂。多次并发调用合并为一次排队执行，
+   * 队列只消费最新文档 —— 永不交错。
    * @param {Record<string, unknown>} next resolved section（含 secret 实值）
    */
-  async function rebuild(next) {
-    if (disposed) return
+  function rebuild(next) {
+    if (disposed) return Promise.resolve()
+    pendingDoc = next
+    if (draining) return rebuildQueue
+    draining = true
+    rebuildQueue = rebuildQueue.then(async () => {
+      while (!disposed && pendingDoc !== undefined) {
+        const doc = pendingDoc
+        pendingDoc = undefined
+        try {
+          await applyRebuild(doc)
+        } catch (err) {
+          logger.warn("config-center: mcp rebuild failed:", err?.message ?? err)
+        }
+      }
+      draining = false
+    })
+    return rebuildQueue
+  }
+
+  async function applyRebuild(next) {
     const desired = new Map()
     for (const [key, entry] of Object.entries(next ?? {})) {
       if (entry?.enabled === false) {
@@ -136,6 +162,10 @@ export function createSupervisor(ctx, logger) {
       if (rec && rec.configKey === configKey(entry)) continue
       if (rec) await teardown(name)
       mount(name, entry)
+    }
+    // 文档中已消失的条目：清理状态，避免 statusList 回显幽灵行
+    for (const name of [...status.keys()]) {
+      if (!(name in (next ?? {}))) status.delete(name)
     }
     refreshCounts()
   }
@@ -210,6 +240,7 @@ export function createSupervisor(ctx, logger) {
 
   async function dispose() {
     disposed = true
+    pendingDoc = undefined
     for (const [name] of [...live]) await teardown(name)
     status.clear()
   }

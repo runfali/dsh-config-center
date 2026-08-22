@@ -31,6 +31,7 @@ export function PluginsTab({ onNeedsRestart }) {
 
   async function writeOp(method, args) {
     try {
+      if (!doc) throw new Error("列表尚未加载完成，请稍候再操作")
       await rpc(method, { ...args, expectedHash: doc.contentHash })
       await refresh()
       onNeedsRestart?.()

@@ -101,11 +101,16 @@ test("listEntries sees direct / insert / group children", () => {
   assert.equal(byId.child.groupId, "grp")
 })
 
-test("validateRows rejects bad id / dup / unknown field / dynamic expressions", () => {
+test("validateRows: bad id / dup / dynamic expressions; unknown fields tolerated (round-trip fidelity)", () => {
   assert.match(validateRows([{ id: "Bad_Id", name: "x" }]), /id/)
   assert.match(validateRows([{ id: "a", name: "x" }, { insert: [{ id: "a", name: "y" }] }]), /duplicate/)
-  assert.match(validateRows([{ id: "a", name: "x", rogue: 1 }]), /unknown field/)
   assert.match(validateRows([{ id: "a", name: "x", config: { t: "process.env.TOKEN" } }]), /dynamic/)
+  // loader 高级字段（如 inject）在全表校验中放行 —— round-trip 保真
+  assert.equal(validateRows([{ id: "a", name: "x", inject: ["fs"] }]), null)
+})
+
+test("addRow keeps strict field whitelist (UI injection surface)", () => {
+  assert.throws(() => addRow([], { id: "ok", name: "p", rogue: 1 }), /unknown field/)
 })
 
 test("containsJsTags detects process.env indirection", () => {

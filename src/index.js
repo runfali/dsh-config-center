@@ -201,6 +201,12 @@ export function apply(ctx, config) {
       mutate: (ops, expectedRevision) => c.settings.mutate(MCP_SETTINGS_NS, ops, expectedRevision),
       /** 当前 namespace 修订号（describe 面读取，围栏用） */
       revision: () => c.settings.describe().find((d) => d.ns === MCP_SETTINGS_NS)?.revision,
+      /** secret sidecar：每个 role('secret') 字段的位置与是否有值（不含实值） */
+      secrets: () =>
+        c.settings
+          .describe({ redactSecrets: true })
+          .find((d) => d.ns === MCP_SETTINGS_NS)
+          ?.secrets?.map((s) => ({ path: [...s.path], set: s.set })) ?? [],
     }
     // dispose：随 fiber 拆掉全部子挂载与探针
     ctx.effect(() => supervisor.dispose(), "config-center: supervisor teardown")
@@ -242,6 +248,11 @@ export function apply(ctx, config) {
       await mcpApi.mutate(ops, args?.expectedRevision)
       return { revision: mcpApi.revision() }
     })
+    // secret 键位目录（只有路径与 set 布尔，无实值）—— 编辑抽屉展示"已配置"用
+    reg("mcpSecrets", async () => ({
+      secrets: mcpApi ? mcpApi.secrets() : [],
+      available: !!mcpApi,
+    }))
 
     // ---- T4：cordis.patch.yml 行编辑 RPC ----
     const patchPath = () =>

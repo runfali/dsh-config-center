@@ -117,6 +117,8 @@ const McpHttp = z.object({
 const McpCenterSchema = z.dict(z.union([McpStdio, McpHttp]))
 ```
 
+> ⚠️ **T2 实现期修正（实测踩坑）**：redact walker 只下钻 object/dict/array，union 分支内的 secret 永远抓不到 —— 实现改为**扁平单 object**（stdio/http 字段合一），transport 差异由 validate() 与 UI 显隐兜底。见 `src/mcp-schema.js`。
+
 - `applies: 'live'`，`describe(redactSecrets:true)`，写路径用 `mutate([pathOp])` 避免 redact 视图重建时丢 secret。
 - `enabled=false` 的条目 Host 侧不挂载，但保留在文档中以便 UI 切换。
 

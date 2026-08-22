@@ -207,16 +207,41 @@ function Editor({ editing, existing, onClose, onSaved }) {
       ? {
           ...editing.draft,
           argsText: (editing.draft.args ?? []).join(" "),
-          envPairs: Object.entries(editing.draft.env ?? {}).map(([k, v]) => ({ k, v: "" })), // 实值不下发：空串=不改
-          envConfigured: Object.keys(editing.draft.env ?? {}),
-          headerPairs: Object.entries(editing.draft.headers ?? {}).map(([k]) => ({ k, v: "" })),
-          headerConfigured: Object.keys(editing.draft.headers ?? {}),
+          envPairs: [],
+          envConfigured: [], // 异步由 mcpSecrets 填充（redacted 视图不含键名）
+          headerPairs: [],
+          headerConfigured: [],
         }
       : editing.draft,
   )
   const [invalid, setInvalid] = useState({})
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+
+  // 拉取该 server 已配置的 secret 键位目录（仅键名 + set 布尔，无实值）
+  useEffect(() => {
+    if (editing.mode !== "edit") return
+    let alive = true
+    rpc("mcpSecrets")
+      .then(({ secrets }) => {
+        if (!alive || !Array.isArray(secrets)) return
+        const prefix = [editing.draft.serverName]
+        const mine = secrets.filter((s) => s.path.length === prefix.length + 1 && s.path[0] === prefix[0])
+        const envKeys = mine.filter((s) => s.path[1] === "env").map((s) => ({ key: s.path[2], set: s.set }))
+        const headerKeys = mine.filter((s) => s.path[1] === "headers").map((s) => ({ key: s.path[2], set: s.set }))
+        setDraft((d) => ({
+          ...d,
+          envPairs: envKeys.map(({ key }) => ({ k: key, v: "" })),
+          envConfigured: envKeys.filter(({ set }) => set).map(({ key }) => key),
+          headerPairs: headerKeys.map(({ key }) => ({ k: key, v: "" })),
+          headerConfigured: headerKeys.filter(({ set }) => set).map(({ key }) => key),
+        }))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }))
 
@@ -348,20 +373,23 @@ function KVEditor({ label, pairs, configured, onPairs, secret }) {
     onPairs(next)
   }
   return (
-    <Field label={label} hint={secret ? "留空值 = 保持已存值不变；新增键填写实值" : undefined}>
+    <Field label={label} hint={secret ? "已配置的键留空即保持现值；填新值则覆盖" : undefined}>
       {pairs.length === 0 ? <span className="cc-hint">暂无条目</span> : null}
-      {pairs.map((p, i) => (
-        <div key={i} style={{ display: "flex", gap: 8 }}>
-          <TextInput value={p.k} onChange={(k) => update(i, { k })} placeholder="KEY" />
-          <TextInput
-            type="password"
-            value={p.v}
-            onChange={(v) => update(i, { v })}
-            placeholder={configured.includes(p.k) ? "已配置（留空保持）" : "VALUE"}
-          />
-          <Button onClick={() => onPairs(pairs.filter((_, idx) => idx !== i))}>移除</Button>
-        </div>
-      ))}
+      {pairs.map((p, i) => {
+        const isSet = configured.includes(p.k.trim()) && p.k.trim() !== ""
+        return (
+          <div key={i} style={{ display: "flex", gap: 8 }}>
+            <TextInput value={p.k} onChange={(k) => update(i, { k })} placeholder="KEY" />
+            <TextInput
+              type="password"
+              value={p.v}
+              onChange={(v) => update(i, { v })}
+              placeholder={isSet ? "已配置（留空保持）" : "VALUE"}
+            />
+            <Button onClick={() => onPairs(pairs.filter((_, idx) => idx !== i))}>移除</Button>
+          </div>
+        )
+      })}
       <div>
         <Button onClick={() => onPairs([...pairs, { k: "", v: "" }])}>添加一项</Button>
       </div>
