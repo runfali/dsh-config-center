@@ -13,7 +13,7 @@
 | 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☑ | 大鱼 | build 全绿；client 5.2kb envelope✓ host ESM✓ |
 | 2 | MCP | Host `mcp-center` settings namespace + schemastery schema（secret 隔离） | ☑ | 大鱼 | ⚠️弃用union建模→扁平object（redact walker不下钻union）；redact/validate实测通过 |
 | 3 | MCP | Host isolate realm 动态挂载 `dsh-mcp-client`（复用其导出 apply/Config）+ watch 重建 + 实时状态徽标 | ☑ | 大鱼 | mock ctx 冒烟过：挂载/disabled跳过/计数/dispose ✓ |
-| 4 | 文件 | Host RPC `listRows/addRow/removeRow/updateRow/toggleRow/writePatch` + **插件增删改查** + contentHash 围栏 + `!!js` 行保护 | ☐ | 大鱼 | 插件增删是本期必做，见 §4.2 |
+| 4 | 文件 | Host RPC `listRows/addRow/removeRow/updateRow/toggleRow/writePatch` + **插件增删改查** + contentHash 围栏 + `!!js` 行保护 | ☑ | 大鱼 | 结构感知 insert/group；18/18 单测过 |
 | 5 | 文件 | Skill RPC：多根聚合扫描 / frontmatter 开关 / 删除(越界防护) / 模板新增 | ☐ | 大鱼 | P1-3 纠正后设计，watcher 热生效 |
 | 6 | Client | `settings.section id=config-center` 注册 + 内部三 Tabs 壳（Plugins/Skills/MCP） | ☐ | 大鱼 | Slot: settings.section |
 | 7 | Client | MCP Tab：**全部写走 mcpMutate pathOp（P0-2）** + SecretField + live 保存 + dirty/invalid/saving 状态机 | ☐ | 大鱼 | scope.set 在本插件禁用 |

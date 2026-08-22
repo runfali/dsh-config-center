@@ -15,15 +15,52 @@
  *  T5 Skills RPC：listSkills/setSkillFlags/removeSkill/createSkillFromTemplate
  */
 import z from "@deepseek-ai/schemastery"
+import os from "node:os"
 import { settingsNamespace } from "@deepseek-ai/dsh-settings"
 import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
 import { createSupervisor } from "./mcp-supervisor.js"
+import {
+  addRow,
+  readPatchDoc,
+  removeRow,
+  replaceRows,
+  resolvePatchPath,
+  serializeRows,
+  toggleRow,
+  updateRow,
+  validateRows,
+  writePatchAtomic,
+} from "./patch-editor.js"
 
 export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
 export { buildClientConfig, createSupervisor } from "./mcp-supervisor.js"
+export {
+  addRow,
+  containsJsTags,
+  contentHash,
+  readPatchDoc,
+  removeRow,
+  replaceRows,
+  resolvePatchPath,
+  serializeRows,
+  toggleRow,
+  updateRow,
+  validateRows,
+  writePatchAtomic,
+} from "./patch-editor.js"
 
 export const name = "config-center"
 export const inject = ["webServer", "settings"]
+
+/** patch 写操作串行队列（P2-7 并发保护的一半；另一半是 contentHash 围栏） */
+let patchQueue = Promise.resolve()
+
+/** 把一个写操作排进 patch 串行队列 */
+function enqueuePatch(job) {
+  const run = patchQueue.then(job, job)
+  patchQueue = run.catch(() => {})
+  return run
+}
 /** settings namespace：MCP server 配置（T2） */
 export const MCP_SETTINGS_NS = settingsNamespace("mcp-center")
 
@@ -183,6 +220,45 @@ export function apply(ctx, config) {
       if (!mcpApi) throw Object.assign(new Error("settings not ready"), { status: 503 })
       return mcpApi.testMcp(args?.candidate)
     })
+
+    // ---- T4：cordis.patch.yml 行编辑 RPC ----
+    const patchPath = () =>
+      resolvePatchPath(current(), import.meta.url, process.env.DSH_HOME || `${os.homedir()}/.dsh`)
+    /** 读 patch + 运行时 entries 快照 */
+    reg("listRows", async () => {
+      const p = patchPath()
+      let doc
+      try {
+        doc = await readPatchDoc(p, current().maxPatchBytes)
+      } catch (err) {
+        if (err?.code === "ENOENT") doc = { raw: "[]\n", rows: [], hash: "" }
+        else throw err
+      }
+      return { patchPath: p, rows: doc.rows, contentHash: doc.hash }
+    })
+    /** 行写操作公共壳：hash 围栏 → 操作 → 校验 → 原子写（串行队列） */
+    const writeOp = (args, mutate) =>
+      enqueuePatch(async () => {
+        const expectedHash = args?.expectedHash ?? ""
+        const doc = await readPatchDoc(patchPath(), current().maxPatchBytes).catch((err) => {
+          if (err?.code === "ENOENT") return { raw: "[]\n", rows: [], hash: "" }
+          throw err
+        })
+        if (expectedHash && expectedHash !== doc.hash) {
+          throw Object.assign(new Error("patch file changed since you read it — refresh"), { status: 409 })
+        }
+        const nextRows = mutate(doc.rows)
+        const problem = validateRows(nextRows)
+        if (problem) throw Object.assign(new Error(problem), { status: 400 })
+        await writePatchAtomic(patchPath(), serializeRows(nextRows))
+        const after = await readPatchDoc(patchPath(), current().maxPatchBytes)
+        return { needsRestart: true, rows: nextRows, contentHash: after.hash }
+      })
+    reg("addRow", async (args) => writeOp(args, (rows) => addRow(rows, args?.row)))
+    reg("updateRow", async (args) => writeOp(args, (rows) => updateRow(rows, String(args?.id), args?.patch)))
+    reg("removeRow", async (args) => writeOp(args, (rows) => removeRow(rows, String(args?.id))))
+    reg("toggleRow", async (args) => writeOp(args, (rows) => toggleRow(rows, String(args?.id), !!args?.disabled)))
+    reg("writePatch", async (args) => writeOp(args, (rows) => replaceRows(rows, args?.rows)))
     return () =>
       handlers.forEach((fn) => {
         try {
