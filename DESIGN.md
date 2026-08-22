@@ -19,7 +19,7 @@
 | 7 | Client | MCP Tab：**全部写走 mcpMutate pathOp（P0-2）** + SecretField + live 保存 + dirty/invalid/saving 状态机 | ☑ | 大鱼 | scope 只读渲染；探活/停用/删除确认齐备 |
 | 8 | Client | Plugins Tab：表格 **(增/删/改/启用开关/行内 JSON 编辑)** + 校验高亮 + 重启黄条 + bundle/base 行只读展示 | ☑ | 大鱼 | 扁平视图+来源标注；expectedHash 围栏接入 |
 | 9 | Client | Skills Tab：多根列表 + frontmatter 开关 + 详情抽屉 + 模板新增 | ☑ | 大鱼 | 只读根禁写；热生效提示 |
-| 10 | 安全 | Secret redact / mutate(pathOp) / 危险操作二次确认 / 删除路径逃逸防护 | ☐ | 大鱼 | trust-fence 规避 |
+| 10 | 安全 | Secret redact / mutate(pathOp) / 危险操作二次确认 / 删除路径逃逸防护 | ☑ | 大鱼 | 修复 secret 空值覆盖 bug（留空=保持）；清单全过 |
 | T | 测试 | vitest 单测：yaml 校验器 / !!js 检测 / diff rebuild / pathOp 构造器 | ☐ | 大鱼 | P2-8 |
 | 11 | 验证 | 本地验证（build + 单测 + 结构检查）✅可自动执行；**真机挂载冒烟由发哥按 README 操作步骤执行**（约束：大鱼不安装、不重启 dsh） | ☐ | 发哥/大鱼 | 见 §8 与 README |
 | 12 | 文档 | README + 截图 + 回滚说明 | ☐ | 大鱼 | 交付 |

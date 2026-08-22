@@ -178,17 +178,24 @@ function ServerCard({ sv, status, onEdit, onToggle, onProbe, onDelete, probeResu
 
 // ---------------------------------------------------------------- 编辑抽屉
 
-/** env/headers 的 KV 行编辑模型 ↔ pathOp 序列 */
-function pairsToOps(basePath, originalPairs, pairs) {
+/** env/headers 的 KV 行编辑模型 ↔ pathOp 序列
+ *  secret 安全语义（P0-2）：值留空且键已配置 = 保持存量实值不写；
+ *  键被移除 = unset；新键或填了非空值 = set */
+function pairsToOps(basePath, originalPairs, pairs, configuredKeys) {
   const ops = []
   for (const p of pairs) {
-    if (!p.k.trim()) continue
-    ops.push({ op: "set", path: [...basePath, p.k.trim()], value: p.v ?? "" })
+    const key = p.k.trim()
+    if (!key) continue
+    const isConfigured = configuredKeys.includes(key)
+    if (isConfigured && (p.v ?? "") === "") continue // 留空 = 保持已存值
+    ops.push({ op: "set", path: [...basePath, key], value: p.v ?? "" })
   }
   for (const orig of originalPairs) {
     if (!orig.k.trim()) continue
     const still = pairs.some((p) => p.k.trim() === orig.k.trim())
-    if (!still) ops.push({ op: "unset", path: [...basePath, orig.k.trim()] })
+    if (!still && configuredKeys.includes(orig.k.trim())) {
+      ops.push({ op: "unset", path: [...basePath, orig.k.trim()] })
+    }
   }
   return ops
 }
@@ -229,19 +236,18 @@ function Editor({ editing, existing, onClose, onSaved }) {
         .split(/\s+/)
         .filter(Boolean)
       if (isNew) {
+        const kvOf = (pairs) =>
+          Object.fromEntries(
+            pairs.filter((p) => p.k.trim() && (p.v ?? "") !== "").map((p) => [p.k.trim(), p.v]),
+          )
         const entry =
           draft.transport === "streamable-http"
-            ? {
-                transport: "streamable-http",
-                url: draft.url,
-                headers: Object.fromEntries(draft.headerPairs.filter((p) => p.k.trim()).map((p) => [p.k.trim(), p.v])),
-                enabled: true,
-              }
+            ? { transport: "streamable-http", url: draft.url, headers: kvOf(draft.headerPairs), enabled: true }
             : {
                 transport: "stdio",
                 command: draft.command,
                 args,
-                env: Object.fromEntries(draft.envPairs.filter((p) => p.k.trim()).map((p) => [p.k.trim(), p.v])),
+                env: kvOf(draft.envPairs),
                 enabled: true,
               }
         // 新增：单条 set 整 entry（全新条目无 secret 保留问题）
@@ -252,10 +258,10 @@ function Editor({ editing, existing, onClose, onSaved }) {
         if (draft.transport === "stdio") {
           ops.push({ op: "set", path: [name, "command"], value: draft.command })
           ops.push({ op: "set", path: [name, "args"], value: args })
-          ops.push(...pairsToOps([name, "env"], editing.draft.envPairs ?? [], draft.envPairs))
+          ops.push(...pairsToOps([name, "env"], editing.draft.envPairs ?? [], draft.envPairs, editing.draft.envConfigured ?? []))
         } else {
           ops.push({ op: "set", path: [name, "url"], value: draft.url })
-          ops.push(...pairsToOps([name, "headers"], editing.draft.headerPairs ?? [], draft.headerPairs))
+          ops.push(...pairsToOps([name, "headers"], editing.draft.headerPairs ?? [], draft.headerPairs, editing.draft.headerConfigured ?? []))
         }
         ops.push({ op: "set", path: [name, "enabled"], value: draft.enabled !== false })
         await rpc("mcpMutate", { ops })
