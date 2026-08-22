@@ -194,7 +194,14 @@ export function apply(ctx, config) {
       },
     })
     const supervisor = createSupervisor(ctx, ctx.logger)
-    mcpApi = { statusList: () => supervisor.statusList(scope.get()), testMcp: (c2) => supervisor.testMcp(c2) }
+    mcpApi = {
+      statusList: () => supervisor.statusList(scope.get()),
+      testMcp: (c2) => supervisor.testMcp(c2),
+      /** P0-2 唯一写路径：pathOp 增量改（owner scope 无 mutate，走 provider 全局方法） */
+      mutate: (ops, expectedRevision) => c.settings.mutate(MCP_SETTINGS_NS, ops, expectedRevision),
+      /** 当前 namespace 修订号（describe 面读取，围栏用） */
+      revision: () => c.settings.describe().find((d) => d.ns === MCP_SETTINGS_NS)?.revision,
+    }
     // dispose：随 fiber 拆掉全部子挂载与探针
     ctx.effect(() => supervisor.dispose(), "config-center: supervisor teardown")
     // 初始同步 + 后续变更重建（resolved 值含 secret 实值，直接透传 dsh-mcp-client）
@@ -227,11 +234,19 @@ export function apply(ctx, config) {
       if (!mcpApi) throw Object.assign(new Error("settings not ready"), { status: 503 })
       return mcpApi.testMcp(args?.candidate)
     })
+    // P0-2：MCP 配置唯一写路径 —— pathOp 增量改，secret 不经 wire 往返
+    reg("mcpMutate", async (args) => {
+      if (!mcpApi) throw Object.assign(new Error("settings not ready"), { status: 503 })
+      const ops = args?.ops
+      if (!Array.isArray(ops)) throw new Error("ops must be an array of path ops")
+      await mcpApi.mutate(ops, args?.expectedRevision)
+      return { revision: mcpApi.revision() }
+    })
 
     // ---- T4：cordis.patch.yml 行编辑 RPC ----
     const patchPath = () =>
       resolvePatchPath(current(), import.meta.url, process.env.DSH_HOME || `${os.homedir()}/.dsh`)
-    /** 读 patch + 运行时 entries 快照 */
+    /** 读 patch + 扁平逻辑行视图 + 运行时 entries 快照 */
     reg("listRows", async () => {
       const p = patchPath()
       let doc
@@ -241,7 +256,9 @@ export function apply(ctx, config) {
         if (err?.code === "ENOENT") doc = { raw: "[]\n", rows: [], hash: "" }
         else throw err
       }
-      return { patchPath: p, rows: doc.rows, contentHash: doc.hash }
+      const { listEntries } = await import("./patch-editor.js")
+      const flat = listEntries(doc.rows).map(({ entry, source, groupId }) => ({ ...entry, source, ...(groupId ? { groupId } : {}) }))
+      return { patchPath: p, rows: doc.rows, flat, contentHash: doc.hash }
     })
     /** 行写操作公共壳：hash 围栏 → 操作 → 校验 → 原子写（串行队列） */
     const writeOp = (args, mutate) =>

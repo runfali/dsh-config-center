@@ -10,59 +10,13 @@
 import type {} from "@deepseek-ai/dsh-client-locale/client"
 import type {} from "@deepseek-ai/dsh-client-ui-settings/client"
 import React, { useState } from "react"
-import { createRoot } from "react-dom/client"
+import { McpTab } from "./client/McpTab.tsx"
+import { PluginsTab } from "./client/PluginsTab.tsx"
+import { SkillsTab } from "./client/SkillsTab.tsx"
+import { CSS, injectCss } from "./client/style.js"
 
 /** 客户端所需服务：slots 注册 section、settingsScope 读 mcp-center 快照 */
-export const inject = ["slots", "locale", "settingsScope"]
-
-// ---------------------------------------------------------------- rpc 工具
-
-async function rpc(method, args) {
-  const res = await fetch(`/api/config-center/${method}`, {
-    method: args === undefined ? "GET" : "POST",
-    headers: args === undefined ? undefined : { "content-type": "application/json" },
-    body: args === undefined ? undefined : JSON.stringify(args),
-  })
-  let body = null
-  try {
-    body = await res.json()
-  } catch {}
-  if (!res.ok || !body?.ok) {
-    throw new Error(body?.error ?? `rpc ${method} failed (${res.status})`)
-  }
-  return body
-}
-
-// ---------------------------------------------------------------- 样式
-
-const CSS = `
-.cc-section{max-width:860px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:12px}
-.cc-heading{margin:0;font-size:18px;font-weight:600}
-.cc-intro{color:var(--dsw-alias-label-tertiary);margin:0;font-size:13px}
-.cc-tabs{display:flex;gap:22px;align-items:flex-end;border-bottom:1px solid var(--dsw-alias-border-l2)}
-.cc-tab{background:none;border:0;cursor:pointer;font:inherit;color:var(--dsw-alias-label-tertiary);padding:7px 1px 9px;font-size:13px;line-height:20px;position:relative}
-.cc-tab[data-active="true"]{color:var(--dsw-alias-label-primary)}
-.cc-tab[data-active="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--dsw-alias-label-primary)}
-.cc-panel{padding-top:8px;min-width:0}
-.cc-empty{color:var(--dsw-alias-label-tertiary);font-size:13px;margin:0}
-`
-
-function injectCss() {
-  if (typeof document === "undefined") return
-  const TAG_ID = "dsh-config-center/css"
-  if (document.querySelector(`style[data-plugin-css="${TAG_ID}"]`)) return
-  const tag = document.createElement("style")
-  tag.dataset.plugin = "dsh-config-center"
-  tag.dataset.pluginCss = TAG_ID
-  tag.textContent = CSS
-  document.head.appendChild(tag)
-}
-
-// ---------------------------------------------------------------- Tab 壳（T6 起逐个填充）
-
-function Placeholder({ name }: { name: string }) {
-  return <p className="cc-empty">{name} 功能建设中（当前为 T1 骨架占位）</p>
-}
+export const inject = ["slots", "settingsScope"]
 
 type TabId = "plugins" | "skills" | "mcp"
 
@@ -72,12 +26,21 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "mcp", label: "MCP" },
 ]
 
-function ConfigCenterSection() {
-  const [active, setActive] = useState<TabId>("mcp")
+function ConfigCenterSection({ scope }) {
+  const [active, setActive] = useState<TabId>("plugins")
+  const [needsRestart, setNeedsRestart] = useState(false)
   return (
     <div className="cc-section">
       <h2 className="cc-heading">扩展中心</h2>
-      <p className="cc-intro">统一管理插件、Skill 与 MCP 服务器。插件改动需重启 Profile 生效；Skill 与 MCP 即时生效。</p>
+      <p className="cc-intro">
+        统一管理插件、Skill 与 MCP 服务器。插件改动写入 cordis.patch.yml，重启 Profile 生效；Skill 开关与 MCP 配置即时生效。
+      </p>
+      {needsRestart ? (
+        <div className="cc-warnbar" role="status">
+          <span>已写入 cordis.patch.yml — 重启 Profile 后生效：</span>
+          <code>dsh --profile web 重启</code>
+        </div>
+      ) : null}
       <div className="cc-tabs" role="tablist">
         {TABS.map((tab) => (
           <button
@@ -93,29 +56,27 @@ function ConfigCenterSection() {
         ))}
       </div>
       <div className="cc-panel" role="tabpanel">
-        {active === "plugins" && <Placeholder name="插件管理" />}
-        {active === "skills" && <Placeholder name="Skills 管理" />}
-        {active === "mcp" && <Placeholder name="MCP 服务器" />}
+        {active === "plugins" && <PluginsTab onNeedsRestart={() => setNeedsRestart(true)} />}
+        {active === "skills" && <SkillsTab />}
+        {active === "mcp" && <McpTab scope={scope} />}
       </div>
     </div>
   )
 }
 
-// ---------------------------------------------------------------- 入口
-
 export function apply(ctx: any) {
   injectCss()
-  // ping 通道自检（控制台可见结果；失败不影响页面）
-  rpc("ping")
-    .then((r) => console.info("[config-center] host channel ok:", r))
-    .catch((err) => console.warn("[config-center] host channel unreachable:", err))
-
   const slots = ctx.get("slots")
   if (slots === undefined) return
+  // MCP 只读快照：绑定到本插件 fiber（dispose 随 fiber 回收）
+  let scope = null
+  try {
+    scope = ctx.settingsScope?.bind ? ctx.settingsScope.bind({ namespace: "mcp-center" }) : null
+  } catch {}
   slots.inject("settings.section", () =>
     slots.register(
       { name: "settings.section", id: "config-center", order: 30, label: "扩展中心" },
-      (props: any) => <ConfigCenterSection close={props.close} />,
+      (props: any) => <ConfigCenterSection scope={scope} close={props.close} />,
     ),
   )
 }
