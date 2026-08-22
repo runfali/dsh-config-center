@@ -98,7 +98,8 @@ export function McpTab({ scope }: { scope: any }) {
   }
 
   async function mutate(ops) {
-    await rpc("mcpMutate", { ops })
+    const revision = scope?.getSnapshot?.().revision
+    await rpc("mcpMutate", { ops, ...(typeof revision === "number" ? { expectedRevision: revision } : {}) })
   }
 
   async function toggle(sv) {

@@ -71,3 +71,27 @@
 ## 五、处置
 
 以上结论已回写 `DESIGN.md`：头部总表新增 V-RPC 前置验证行与 P2 任务行；§4 新增 4.3「RPC 通道决策」；§5.2 改为 mutate-only；§5.4 整节重写；§9 风险表补充。设计文档版本号升至 v2，待发哥复核后进入 T1。
+
+---
+
+## 附录：实现期代码审计（2026-08-22 第二轮，代码完成后）
+
+对照真实宿主 API 逐文件复查 + 真 HTTP 栈集成测试，新发现并已修复：
+
+| # | 严重度 | 问题 | 修复 |
+|---|--------|------|------|
+| C1 | 🔴 高 | supervisor rebuild 无串行化：watch 快速触发时多个 async rebuild 交错，teardown/mount 可能乱序 | rebuild 队列化 + 突发合并（只消费最新文档），回归测试覆盖 |
+| C2 | 🟠 中 | 删除 MCP server 后 status Map 残留 → statusList 回显幽灵行 | applyRebuild 尾部清理文档外条目 |
+| C3 | 🟠 中 | validateRows 字段白名单误伤带 loader 高级字段（inject/provide…）的既有合法行 | 全表校验放宽（round-trip 保真）；addRow 保持严格白名单（UI 注入面） |
+| C4 | 🟠 中 | 编辑 MCP 条目看不到已配置 secret 的键名（redacted 视图 env={}） | 新增 `mcpSecrets` sidecar RPC（仅键名+set 布尔），编辑抽屉异步填充并显示「已配置」 |
+| C5 | 🟡 低 | ensureExistsAndInside 在 parent 为 symlink 时 realpath 拼接误判 | 重写为 realpath(parent)+basename |
+| C6 | 🟡 低 | PluginsTab doc 未加载时 expectedHash=undefined 绕过围栏 | 前端禁写提示 |
+| C7 | 🟡 低 | settings.yaml 存量 mcp-center 段损坏 → register reject → 整插件激活失败 | try/catch 降级：MCP 功能缺席、其余照常，warn 日志 |
+| C8 | 🟡 低 | mcpMutate 未携带 revision 围栏 | UI 传 scope.snapshot.revision |
+
+**排除的疑点（实测不成立）**：
+- testMcp stdio 缺 PATH —— SDK `getDefaultEnvironment()` 自带 sudo 风格白名单合并 ✓
+- inject 回调内调用 ctx.effect/scope.register —— cordis effect 约束是「fiber 已 dispose 才抛 INACTIVE_EFFECT」，inject 回调运行于活 fiber，官方 installSettingsSection 同模式 ✓
+- dsh-mcp-client inject 仅 ['tools']，无可选服务硬等待 ✓
+
+**保留的已知限制**（设计权衡，非缺陷）：`!!js` 动态表达式 load 后无法从文本识别（启发式检测尽力而为）；UI 单语文案；bundle 来源插件行只读。

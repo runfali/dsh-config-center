@@ -172,5 +172,16 @@ test("serialize→parse round-trip preserves insert/group structure", async (t) 
     assert.equal(reread.rows.find((r) => r.insert)?.insert[0].config.port, 1)
     const bak = await fs.readFile(`${file}.bak`, "utf8")
     assert.ok(bak.includes("pre"))
+    // 原子写权限收敛：0600
+    const { stat } = await import("node:fs/promises")
+    assert.equal(stat ? (await stat(file)).mode & 0o777 : 0o600, 0o600)
   })
+})
+
+test("updateRow tolerates pre-existing advanced loader fields", () => {
+  const rows = [{ insert: [{ id: "a", name: "A", inject: ["fs"], provide: "custom" }] }]
+  updateRow(rows, "a", { name: "A2" })
+  const { entry } = listEntries(rows)[0]
+  assert.equal(entry.name, "A2")
+  assert.deepEqual(entry.inject, ["fs"]) // 高级字段保真
 })

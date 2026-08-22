@@ -184,15 +184,26 @@ export function apply(ctx, config) {
   let mcpApi = null
 
   // ---- T2/T3: mcp-center settings namespace + 动态挂载 supervisor ----
+  // 降级保护：存量 settings.yaml 的 mcp-center 段损坏会让 register 本身 reject
+  // （dsh-settings 语义），不能因此拖垮整个插件 —— 其余功能照常。
   ctx.inject(["settings"], (c) => {
-    const scope = c.settings.register(MCP_SETTINGS_NS, McpCenterSchema, {
-      applies: "live",
-      // 跨字段校验：dict key 即 serverName，schema 无法表达 key 约束
-      validate: (value) => {
-        const problem = validateMcpDoc(value)
-        if (problem) throw new Error(problem)
-      },
-    })
+    let scope
+    try {
+      scope = c.settings.register(MCP_SETTINGS_NS, McpCenterSchema, {
+        applies: "live",
+        // 跨字段校验：dict key 即 serverName，schema 无法表达 key 约束
+        validate: (value) => {
+          const problem = validateMcpDoc(value)
+          if (problem) throw new Error(problem)
+        },
+      })
+    } catch (err) {
+      ctx.logger.warn(
+        "config-center: mcp-center namespace registration failed (corrupt stored section?):",
+        err?.message ?? err,
+      )
+      return
+    }
     const supervisor = createSupervisor(ctx, ctx.logger)
     mcpApi = {
       statusList: () => supervisor.statusList(scope.get()),
