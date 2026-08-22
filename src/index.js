@@ -31,6 +31,9 @@ import {
   validateRows,
   writePatchAtomic,
 } from "./patch-editor.js"
+import { createSkillFromTemplate, listSkills, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
+
+export { createSkillFromTemplate, listSkills, parseSkillMd, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
 
 export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
 export { buildClientConfig, createSupervisor } from "./mcp-supervisor.js"
@@ -71,6 +74,10 @@ export const Config = z.object({
   skillsRoot: z.string().default(""),
   /** patch 文件读取字节上限 */
   maxPatchBytes: z.number().default(1048576),
+  /** 项目根（含 .git 的目录）；空 = 跳过 project 技能根扫描 */
+  projectRoot: z.string().default(""),
+  /** 额外自定义技能根（只读展示） */
+  customSkillDirs: z.array(z.string()).default([]),
 })
 
 const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i
@@ -259,6 +266,49 @@ export function apply(ctx, config) {
     reg("removeRow", async (args) => writeOp(args, (rows) => removeRow(rows, String(args?.id))))
     reg("toggleRow", async (args) => writeOp(args, (rows) => toggleRow(rows, String(args?.id), !!args?.disabled)))
     reg("writePatch", async (args) => writeOp(args, (rows) => replaceRows(rows, args?.rows)))
+
+    // ---- T5：Skills RPC ----
+    const skillsRootsConfig = () => {
+      const cfg = current()
+      const roots = {
+        dshHome: process.env.DSH_HOME || `${os.homedir()}/.dsh`,
+        agentsHome: process.env.DSH_AGENTS_HOME || `${os.homedir()}/.agents`,
+        projectRoot: cfg.projectRoot || "",
+        customSkillDirs: Array.isArray(cfg.customSkillDirs) ? cfg.customSkillDirs : [],
+      }
+      return roots
+    }
+    /** 根定义；config.skillsRoot 覆盖默认 user-dsh 可写根 */
+    const findRoot = (rootId) => {
+      const all = skillRoots(skillsRootsConfig())
+      const override = String(current().skillsRoot ?? "").trim()
+      if (override && rootId === "user-dsh") {
+        return { ...all.find((r) => r.id === "user-dsh"), root: override }
+      }
+      return all.find((r) => r.id === rootId)
+    }
+    reg("listSkills", async () => ({ skills: await listSkills(skillsRootsConfig()) }))
+    reg("setSkillFlags", async (args) => {
+      const root = findRoot(String(args?.rootId))
+      if (!root) throw new Error(`unknown root "${args?.rootId}"`)
+      return setSkillFlags(root, { id: String(args?.id), source: args?.source }, {
+        modelVisible: args?.modelVisible,
+        userInvocable: args?.userInvocable,
+      })
+    })
+    reg("removeSkill", async (args) => {
+      const root = findRoot(String(args?.rootId))
+      if (!root) throw new Error(`unknown root "${args?.rootId}"`)
+      return removeSkill(root, { id: String(args?.id), source: args?.source })
+    })
+    reg("createSkill", async (args) => {
+      const root = findRoot(String(args?.rootId ?? "user-dsh"))
+      if (!root) throw new Error(`unknown root "${args?.rootId}"`)
+      return createSkillFromTemplate(
+        { id: String(args?.id), description: args?.description, whenToUse: args?.whenToUse },
+        root,
+      )
+    })
     return () =>
       handlers.forEach((fn) => {
         try {
