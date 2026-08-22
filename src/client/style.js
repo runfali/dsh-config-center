@@ -41,7 +41,7 @@ export const CSS = `
 .cc-badge-warn{background:rgba(210,153,34,.14);color:#d29922}
 
 /* 按钮 */
-.cc-btn{appearance:none;font:inherit;cursor:pointer;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5;border:1px solid transparent}
+.cc-btn{appearance:none;font:inherit;cursor:pointer;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5;border:1px solid transparent;white-space:nowrap;flex:none}
 .cc-btn-secondary{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:none}
 .cc-btn-secondary:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}
 .cc-btn-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}
@@ -53,7 +53,7 @@ export const CSS = `
 .cc-field+.cc-field{border-top:1px solid var(--dsw-alias-border-l2)}
 .cc-field-head{display:flex;align-items:center;gap:8px}
 .cc-label{min-width:0;color:var(--dsw-alias-label-primary);flex:1;font-size:13px;font-weight:500;line-height:1.5}
-.cc-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 12px;font-size:13px;width:100%;box-sizing:border-box}
+.cc-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 12px;font-size:13px;width:100%;box-sizing:border-box;flex:1;min-width:0}
 .cc-input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}
 .cc-input-invalid,.cc-input-invalid:focus-visible{border-color:#f85149}
 .cc-hint{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:1.5}
