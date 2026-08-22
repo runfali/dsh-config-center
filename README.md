@@ -1,6 +1,6 @@
 # dsh-config-center — 扩展中心
 
-在 WebUI 设置中统一管理 **插件 / Skill / MCP** 的零侵入 bundle 插件。设置面板新增独立「扩展中心」页，内部三 Tabs：
+主界面左侧栏底部的「扩展管理中心」直达（Settings 旁，与 Cordis 面板同款官方挂点），点击打开**全屏管理页**，内部三 Tabs：
 
 | Tab | 能力 | 生效方式 |
 |---|---|---|
@@ -54,7 +54,7 @@ curl -s http://127.0.0.1:3080/api/config-center/ping
 curl -s http://127.0.0.1:3080/api/config-center/listRows | head -c 400
 ```
 
-UI 冒烟（浏览器 → 设置 → 扩展中心）：
+UI 冒烟（浏览器 → 左侧栏底部「扩展管理中心」→ 打开全屏页）：
 
 1. **插件 Tab**：新增 `id: demo-plugin, name: <任意绝对路径或包名>` → 列表出现 → 黄条提示重启 → 重启后仍存在 → 删除。
 2. **Skills Tab**：列表出现现有技能 → 对 user 根技能切换「模型可见」→ 数秒内生效（无需重启）→ 点「编辑」改 SKILL.md 内容 → 保存 → 磁盘文件已更新且热生效。

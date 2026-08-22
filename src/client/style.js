@@ -72,4 +72,22 @@ export const CSS = `
 /* 提示条 */
 .cc-errorbar{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.35);color:#f85149;border-radius:8px;padding:8px 12px;font-size:12.5px;margin:0}
 .cc-warnbar{background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.4);color:#d29922;border-radius:8px;padding:8px 12px;font-size:12.5px;margin:0;display:flex;gap:10px;align-items:center}
+/* ---- 侧栏底部入口（对齐 settings.trigger 视觉）---- */
+.cc-foot-entry{appearance:none;background:0 0;border:0;color:var(--dsw-alias-label-secondary);cursor:pointer;border-radius:10px;height:36px;justify-content:center;align-items:center;gap:9px;padding:0 10px;display:flex;width:100%;min-width:0;font:inherit;font-size:13.5px}
+.cc-foot-entry:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
+.cc-foot-entry.is-wide{padding:0 4px}
+.cc-foot-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---- 全屏管理页（shell.overlay）---- */
+.cc-page{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-size:14px}
+.cc-page-head{flex:none;display:flex;align-items:center;gap:24px;padding:18px 32px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.cc-page-title{display:flex;align-items:center;gap:10px;padding-bottom:14px}
+.cc-page-title h1{margin:0;font-size:17px;font-weight:600;line-height:24px}
+.cc-tabs-page{border-bottom:none}
+.cc-tabs-page .cc-tab{padding:10px 2px 12px;font-size:13.5px}
+.cc-page-close{margin-left:auto;appearance:none;background:0 0;border:0;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:15px;width:30px;height:30px;border-radius:50%;display:inline-flex;justify-content:center;align-items:center;margin-bottom:8px}
+.cc-page-close:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}
+.cc-page-body{flex:1;overflow:auto;padding:22px 32px 40px}
+.cc-section-page{max-width:1080px;margin:0 auto}
+
 `
