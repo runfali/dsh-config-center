@@ -34,8 +34,10 @@ import {
   writePatchAtomic,
 } from "./patch-editor.js"
 import { createSkillFromTemplate, listSkills, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
+import { installBundle, listBundles, removeBundle, resolveProfileDir } from "./bundle-manager.js"
 
 export { createSkillFromTemplate, listSkills, parseSkillMd, removeSkill, setSkillFlags, skillRoots } from "./skills-editor.js"
+export { installBundle, listBundles, readBundleState, removeBundle, resolveProfileDir } from "./bundle-manager.js"
 
 export { McpCenterSchema, validateMcpDoc, McpEntrySchema, SERVER_NAME_PATTERN } from "./mcp-schema.js"
 export { buildClientConfig, createSupervisor } from "./mcp-supervisor.js"
@@ -64,6 +66,13 @@ let patchQueue = Promise.resolve()
 function enqueuePatch(job) {
   const run = patchQueue.then(job, job)
   patchQueue = run.catch(() => {})
+  return run
+}
+/** pnpm 安装/移除串行队列（pnpm 同一时间只能有一个在 profile 目录跑） */
+let pnpmQueue = Promise.resolve()
+function enqueuePnpm(job) {
+  const run = pnpmQueue.then(job, job)
+  pnpmQueue = run.catch(() => {})
   return run
 }
 /** settings namespace：MCP server 配置（T2） */
@@ -357,6 +366,31 @@ export function apply(ctx, config) {
         root,
       )
     })
+
+    // ---- Bundles：profile 已安装插件（package.json dsh.profile.bundles）----
+    const profileDir = () => resolveProfileDir(current().patchPath, process.env)
+    reg("listBundles", async () => {
+      const dir = profileDir()
+      const items = listBundles(dir)
+      return { profileDir: dir, bundles: items }
+    })
+    reg("installBundle", async (args) =>
+      enqueuePnpm(async () => {
+        const spec = String(args?.spec ?? "").trim()
+        if (!spec) throw new Error("spec is required — e.g. dsh-better-sidebar@0.15.0  /  /data/path  /  github:HanaAyane/dsh-reasoning-effort")
+        const dir = profileDir()
+        const cwdHint = String(args?.cwdHint ?? process.cwd())
+        return installBundle(spec, dir, cwdHint)
+      }),
+    )
+    reg("removeBundle", async (args) =>
+      enqueuePnpm(async () => {
+        const name = String(args?.name ?? "").trim()
+        if (!name) throw new Error("package name required")
+        const dir = profileDir()
+        return removeBundle(name, dir)
+      }),
+    )
     return () =>
       handlers.forEach((fn) => {
         try {
