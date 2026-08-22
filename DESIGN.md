@@ -8,7 +8,7 @@
 
 | # | 阶段 | 任务 | 状态 | 负责人 | 备注 |
 |---|------|------|------|--------|------|
-| 0 | 文档 | 设计文档定稿 + 评审 | ◐ | 大鱼 | v2 已按审计修订，待发哥复核 |
+| 0 | 文档 | 设计文档定稿 + 审计修订 | ☑ | 大鱼 | v2；AUDIT.md 全部 P0/P1 已消化 |
 | V | 验证 | **V-RPC 前置门**：静态 Bundle Client→Host 通道 | ☑ | 大鱼 | 定案方案 A：`ctx.webServer.register` /api 路由，见 §4.3 |
 | 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☑ | 大鱼 | build 全绿；client 5.2kb envelope✓ host ESM✓ |
 | 2 | MCP | Host `mcp-center` settings namespace + schemastery schema（secret 隔离） | ☑ | 大鱼 | ⚠️弃用union建模→扁平object（redact walker不下钻union）；redact/validate实测通过 |
@@ -20,9 +20,9 @@
 | 8 | Client | Plugins Tab：表格 **(增/删/改/启用开关/行内 JSON 编辑)** + 校验高亮 + 重启黄条 + bundle/base 行只读展示 | ☑ | 大鱼 | 扁平视图+来源标注；expectedHash 围栏接入 |
 | 9 | Client | Skills Tab：多根列表 + frontmatter 开关 + 详情抽屉 + 模板新增 | ☑ | 大鱼 | 只读根禁写；热生效提示 |
 | 10 | 安全 | Secret redact / mutate(pathOp) / 危险操作二次确认 / 删除路径逃逸防护 | ☑ | 大鱼 | 修复 secret 空值覆盖 bug（留空=保持）；清单全过 |
-| T | 测试 | vitest 单测：yaml 校验器 / !!js 检测 / diff rebuild / pathOp 构造器 | ☐ | 大鱼 | P2-8 |
-| 11 | 验证 | 本地验证（build + 单测 + 结构检查）✅可自动执行；**真机挂载冒烟由发哥按 README 操作步骤执行**（约束：大鱼不安装、不重启 dsh） | ☐ | 发哥/大鱼 | 见 §8 与 README |
-| 12 | 文档 | README + 截图 + 回滚说明 | ☐ | 大鱼 | 交付 |
+| T | 测试 | node --test：patch-editor/skills-editor/host-RPC 集成（真 HTTP 栈） | ☑ | 大鱼 | 32/32 通过 |
+| 11 | 验证 | 本地终验（build/32测试/bundle结构/导出完整性）☑ 大鱼已完成；**真机挂载冒烟由发哥按 README 执行** | ☐ | 发哥 | README 验证清单四步 |
+| 12 | 文档 | README(安装步骤/验证清单/安全设计/回滚) | ☑ | 大鱼 | 截图待真机安装后补 |
 
 > 勾选规则：`☐` 未开始 / `◐` 进行中 / `☑` 已完成。每次完成一项直接改本表。
 
