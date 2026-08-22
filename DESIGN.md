@@ -10,7 +10,7 @@
 |---|------|------|------|--------|------|
 | 0 | 文档 | 设计文档定稿 + 评审 | ◐ | 大鱼 | v2 已按审计修订，待发哥复核 |
 | V | 验证 | **V-RPC 前置门**：静态 Bundle Client→Host 通道 | ☑ | 大鱼 | 定案方案 A：`ctx.webServer.register` /api 路由，见 §4.3 |
-| 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☐ | 大鱼 | 含 `immediately: false` 评估 |
+| 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☑ | 大鱼 | build 全绿；client 5.2kb envelope✓ host ESM✓ |
 | 2 | MCP | Host `mcp-center` settings namespace + schemastery schema（secret 隔离） | ☐ | 大鱼 | transport=stdio/streamable-http |
 | 3 | MCP | Host isolate realm 动态挂载 `dsh-mcp-client`（复用其导出 apply/Config）+ watch 重建 + 实时状态徽标 | ☐ | 大鱼 | ctx.plugin 已验证存在；含 P2-6 状态上报 |
 | 4 | 文件 | Host RPC `listRows/addRow/removeRow/updateRow/toggleRow/writePatch` + **插件增删改查** + contentHash 围栏 + `!!js` 行保护 | ☐ | 大鱼 | 插件增删是本期必做，见 §4.2 |

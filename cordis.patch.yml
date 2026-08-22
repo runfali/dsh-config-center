@@ -1,0 +1,26 @@
+# dsh-config-center 扩展中心 bundle 插件
+#
+# 安装（标准 bundle 插件，不改 dsh 源码；安装/卸载后重启 dsh 生效）：
+#   dsh plugin --profile web add /data/dsh-workspace/dsh-config-center
+# 卸载：
+#   dsh plugin --profile web remove dsh-config-center
+#
+# 功能：
+#   1. 设置 → 扩展中心：Plugins Tab（cordis.patch.yml 行增删改查，需重启生效）
+#   2. Skills Tab（多根聚合列表 + frontmatter 开关热生效 + 模板新增）
+#   3. MCP Tab（settings 动态挂载 dsh-mcp-client，live 即时生效）
+#
+# 配置覆盖（追加到 ~/.dsh/profiles/web/cordis.patch.yml，整段替换 config）：
+# - id: config-center
+#   config:
+#     patchPath: ""          # cordis.patch.yml 绝对路径；空 = 自动解析 profile 路径
+#     skillsRoot: ""         # 可写技能根；空 = <DSH_HOME>/skills
+#     maxPatchBytes: 1048576 # patch 文件读取上限
+
+- insert:
+    - id: config-center
+      name: 'dsh-config-center'
+      config:
+        patchPath: ""
+        skillsRoot: ""
+        maxPatchBytes: 1048576
