@@ -29,12 +29,18 @@ const TABS: Array<{ id: TabId; label: string }> = [
 function ConfigCenterSection({ scope }) {
   const [active, setActive] = useState<TabId>("plugins")
   const [needsRestart, setNeedsRestart] = useState(false)
+  const [commentLost, setCommentLost] = useState(false)
   return (
     <div className="cc-section">
       <h2 className="cc-heading">扩展中心</h2>
       <p className="cc-intro">
         统一管理插件、Skill 与 MCP 服务器。插件改动写入 cordis.patch.yml，重启 Profile 生效；Skill 开关与 MCP 配置即时生效。
       </p>
+      {commentLost ? (
+        <div className="cc-warnbar" role="status">
+          <span>本次写入未保留 patch 文件中/尾部注释（头部注释已保留），原文备份于 cordis.patch.yml.bak。</span>
+        </div>
+      ) : null}
       {needsRestart ? (
         <div className="cc-warnbar" role="status">
           <span>已写入 cordis.patch.yml — 重启 Profile 后生效：</span>
@@ -56,7 +62,12 @@ function ConfigCenterSection({ scope }) {
         ))}
       </div>
       <div className="cc-panel" role="tabpanel">
-        {active === "plugins" && <PluginsTab onNeedsRestart={() => setNeedsRestart(true)} />}
+        {active === "plugins" && (
+          <PluginsTab
+            onNeedsRestart={() => setNeedsRestart(true)}
+            onCommentLost={() => setCommentLost(true)}
+          />
+        )}
         {active === "skills" && <SkillsTab />}
         {active === "mcp" && <McpTab scope={scope} />}
       </div>

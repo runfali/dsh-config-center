@@ -9,7 +9,7 @@ import { Button, Drawer, ErrorBar, Field, TextInput } from "./ui.jsx"
 
 const SOURCE_LABEL = { direct: "patch 直挂", insert: "insert 块", group: "group 子行" }
 
-export function PluginsTab({ onNeedsRestart }) {
+export function PluginsTab({ onNeedsRestart, onCommentLost }) {
   const [doc, setDoc] = useState(null) // {flat, contentHash, patchPath}
   const [error, setError] = useState(null)
   const [editing, setEditing] = useState(null)
@@ -32,7 +32,10 @@ export function PluginsTab({ onNeedsRestart }) {
   async function writeOp(method, args) {
     try {
       if (!doc) throw new Error("列表尚未加载完成，请稍候再操作")
-      await rpc(method, { ...args, expectedHash: doc.contentHash })
+      const resp = await rpc(method, { ...args, expectedHash: doc.contentHash })
+      if (resp.commentLost) {
+        onCommentLost?.()
+      }
       await refresh()
       onNeedsRestart?.()
       return true

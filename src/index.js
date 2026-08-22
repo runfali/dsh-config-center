@@ -21,6 +21,8 @@ import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
 import { createSupervisor } from "./mcp-supervisor.js"
 import {
   addRow,
+  extractHeaderComments,
+  hasNonHeaderComments,
   readPatchDoc,
   removeRow,
   replaceRows,
@@ -282,12 +284,13 @@ export function apply(ctx, config) {
       const flat = listEntries(doc.rows).map(({ entry, source, groupId }) => ({ ...entry, source, ...(groupId ? { groupId } : {}) }))
       return { patchPath: p, rows: doc.rows, flat, contentHash: doc.hash }
     })
-    /** 行写操作公共壳：hash 围栏 → 操作 → 校验 → 原子写（串行队列） */
+    /** 行写操作公共壳：hash 围栏 → 操作 → 校验 → 原子写（串行队列）。
+     *  头部注释块自动保留；中/尾部注释丢失时返回 commentLost 供 UI 警告。 */
     const writeOp = (args, mutate) =>
       enqueuePatch(async () => {
         const expectedHash = args?.expectedHash ?? ""
         const doc = await readPatchDoc(patchPath(), current().maxPatchBytes).catch((err) => {
-          if (err?.code === "ENOENT") return { raw: "[]\n", rows: [], hash: "" }
+          if (err?.code === "ENOENT") return { raw: "", rows: [], hash: "" }
           throw err
         })
         if (expectedHash && expectedHash !== doc.hash) {
@@ -296,9 +299,15 @@ export function apply(ctx, config) {
         const nextRows = mutate(doc.rows)
         const problem = validateRows(nextRows)
         if (problem) throw Object.assign(new Error(problem), { status: 400 })
-        await writePatchAtomic(patchPath(), serializeRows(nextRows))
+        const header = extractHeaderComments(doc.raw)
+        await writePatchAtomic(patchPath(), serializeRows(nextRows, header))
         const after = await readPatchDoc(patchPath(), current().maxPatchBytes)
-        return { needsRestart: true, rows: nextRows, contentHash: after.hash }
+        return {
+          needsRestart: true,
+          rows: nextRows,
+          contentHash: after.hash,
+          commentLost: hasNonHeaderComments(doc.raw),
+        }
       })
     reg("addRow", async (args) => writeOp(args, (rows) => addRow(rows, args?.row)))
     reg("updateRow", async (args) => writeOp(args, (rows) => updateRow(rows, String(args?.id), args?.patch)))

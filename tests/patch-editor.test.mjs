@@ -9,6 +9,8 @@ import { withTempDir } from "./helpers.mjs"
 import {
   addRow,
   contentHash,
+  extractHeaderComments,
+  hasNonHeaderComments,
   containsJsTags,
   listEntries,
   readPatchDoc,
@@ -184,4 +186,29 @@ test("updateRow tolerates pre-existing advanced loader fields", () => {
   const { entry } = listEntries(rows)[0]
   assert.equal(entry.name, "A2")
   assert.deepEqual(entry.inject, ["fs"]) // 高级字段保真
+})
+
+test("header comments survive serialization; mid-file comments detected as lost", async (t) => {
+  await withTempDir(t, async (dir) => {
+    const file = `${dir}/cordis.patch.yml`
+    await writeFile(
+      file,
+      "# 安装说明：dsh plugin add\n# 配置覆盖见下\n\n- id: seed\n  name: seed-plugin\n",
+    )
+    const doc = await readPatchDoc(file, 1 << 20)
+    assert.equal(extractHeaderComments(doc.raw), "# 安装说明：dsh plugin add\n# 配置覆盖见下")
+    assert.equal(hasNonHeaderComments(doc.raw), false)
+    // 写入后头部注释保留
+    let rows = addRow(doc.rows, { id: "demo", name: "demo" })
+    await writePatchAtomic(file, serializeRows(rows, extractHeaderComments(doc.raw)))
+    const reread = await readPatchDoc(file, 1 << 20)
+    assert.ok(reread.raw.startsWith("# 安装说明"))
+    const ids = listEntries(reread.rows).map((e) => e.entry.id).sort()
+    assert.deepEqual(ids, ["demo", "seed"])
+    // 中部注释 → hasNonHeaderComments 报警
+    await writeFile(file, "- id: a\n  name: A\n# 中部说明\n")
+    const doc2 = await readPatchDoc(file, 1 << 20)
+    assert.equal(hasNonHeaderComments(doc2.raw), true)
+    assert.equal(extractHeaderComments(doc2.raw), "")
+  })
 })

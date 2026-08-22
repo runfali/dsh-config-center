@@ -87,9 +87,41 @@ export async function readPatchDoc(patchPath, maxBytes) {
   return { raw, rows: rows ?? [], hash: contentHash(buf) }
 }
 
-/** 序列化整表（loader 方言一致；!!js 已在 validate 阶段拦截） */
-export function serializeRows(rows) {
-  return yaml.dump(rows, { lineWidth: -1 })
+/** 序列化整表（loader 方言一致；!!js 已在 validate 阶段拦截）。
+ *  注释保护：yaml.dump 无法保留注释 —— 原文件的头部连续注释块由调用方
+ *  extractHeaderComments 提取后经 header 参数拼回；中/尾部注释无法定位回插，
+ *  由 hasNonHeaderComments 检出并在 UI 警告「.bak 已保留原文」。 */
+export function serializeRows(rows, header = "") {
+  const body = yaml.dump(rows, { lineWidth: -1 })
+  if (!header) return body
+  return `${header.replace(/\n*$/, "")}\n\n${body}`
+}
+
+/** 提取文件头部连续注释块（含块内空行）；无则空串 */
+export function extractHeaderComments(raw) {
+  const lines = String(raw ?? "").split("\n")
+  const head = []
+  for (const line of lines) {
+    if (/^\s*#/.test(line)) head.push(line)
+    else if (line.trim() === "" && head.length > 0) head.push(line)
+    else break
+  }
+  while (head.length > 0 && head[head.length - 1].trim() === "") head.pop()
+  return head.join("\n")
+}
+
+/** 是否存在头部之外、UI 写入会丢失的注释 */
+export function hasNonHeaderComments(raw) {
+  const headerLines = new Set(extractHeaderComments(raw).split("\n"))
+  let pastHeader = false
+  for (const line of String(raw ?? "").split("\n")) {
+    if (!pastHeader) {
+      if (headerLines.has(line)) continue
+      pastHeader = true
+    }
+    if (/^\s*#/.test(line)) return true
+  }
+  return false
 }
 
 /** 原子写入 + .bak 保留 + 权限收紧 */
