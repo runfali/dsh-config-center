@@ -37,9 +37,11 @@ dsh plugin --profile web remove dsh-config-center
 
 ### 截图
 
-| 入口（左侧栏底部，Settings 旁） | MCP Tab（空态） |
+| 入口（左侧栏底部，Settings 旁） | 插件 Tab |
 |---|---|
-| <img src="docs/screenshot/主页.png" width="400" alt="左侧栏底部扩展管理中心入口" /> | <img src="docs/screenshot/mcp页.png" width="400" alt="MCP Tab 空态" /> |
+| <img src="docs/screenshot/主页.png" width="400" alt="左侧栏底部扩展管理中心入口" /> | <img src="docs/screenshot/插件页.png" width="400" alt="插件 Tab：已装 bundle 与 patch 行" /> |
+| **Skills Tab** | **MCP Tab** |
+| <img src="docs/screenshot/skill页.png" width="400" alt="Skills Tab：多根列表与开关" /> | <img src="docs/screenshot/mcp页.png" width="400" alt="MCP Tab：空态（未配置首个 server）" /> |
 
 ## 可选配置覆盖
 

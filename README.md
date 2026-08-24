@@ -43,9 +43,11 @@ dsh plugin --profile web remove dsh-config-center
 
 ## Screenshots
 
-| Entry point (left sidebar footer, next to Settings) | MCP tab |
+| Entry point (left sidebar footer, next to Settings) | Plugins tab |
 |---|---|
-| <img src="docs/screenshot/主页.png" width="400" alt="Extension Center entry in the left sidebar footer" /> | <img src="docs/screenshot/mcp页.png" width="400" alt="MCP tab empty state" /> |
+| <img src="docs/screenshot/主页.png" width="400" alt="Extension Center entry in the left sidebar footer" /> | <img src="docs/screenshot/插件页.png" width="400" alt="Plugins tab: installed bundles and patch rows" /> |
+| **Skills tab** | **MCP tab** |
+| <img src="docs/screenshot/skill页.png" width="400" alt="Skills tab: multi-root list with toggles" /> | <img src="docs/screenshot/mcp页.png" width="400" alt="MCP tab: empty state before adding the first server" /> |
 
 ## Configuration
 
