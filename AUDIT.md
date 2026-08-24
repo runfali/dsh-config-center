@@ -1,6 +1,6 @@
 # dsh-config-center 设计审计报告
 
-> 审计人：大鱼 · 2026-08-22 · 方法：逐条对照 rc.2 真实源码验证设计假设（cordis / dsh-settings / dsh-client-runtime / dsh-client-ui-settings* / dsh-mcp-client / dsh-skill-filesystem / cordis-plugin-include）
+> 审计人：实施方 · 2026-08-22 · 方法：逐条对照 rc.2 真实源码验证设计假设（cordis / dsh-settings / dsh-client-runtime / dsh-client-ui-settings* / dsh-mcp-client / dsh-skill-filesystem / cordis-plugin-include）
 
 ## 一、总体结论
 
@@ -58,7 +58,7 @@
 | P2-8 | 无自动化测试 | 补 vitest 单测：yaml 校验器、!!js 检测、diff rebuild、pathOp 构造器；冒烟清单已有 §8 |
 | P2-9 | 杂项 | locale 变化需重注册 label（先单语硬编码+TODO）；section 加 React 错误边界与加载态；删除类操作统一确认弹窗组件；`testMcp` 属任意命令执行面，依赖 loopback+网关鉴权，文档注明信任前提 |
 
-## 四、功能完整性判定（对照发哥三诉求）
+## 四、功能完整性判定（对照三诉求）
 
 | 诉求 | 判定 | 条件 |
 |------|------|------|
@@ -70,7 +70,7 @@
 
 ## 五、处置
 
-以上结论已回写 `DESIGN.md`：头部总表新增 V-RPC 前置验证行与 P2 任务行；§4 新增 4.3「RPC 通道决策」；§5.2 改为 mutate-only；§5.4 整节重写；§9 风险表补充。设计文档版本号升至 v2，待发哥复核后进入 T1。
+以上结论已回写 `DESIGN.md`：头部总表新增 V-RPC 前置验证行与 P2 任务行；§4 新增 4.3「RPC 通道决策」；§5.2 改为 mutate-only；§5.4 整节重写；§9 风险表补充。设计文档版本号升至 v2，复核后进入 T1。
 
 ---
 

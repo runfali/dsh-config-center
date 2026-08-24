@@ -3,32 +3,34 @@
 > 统一在 WebUI 设置中配置 **插件 / Skill / MCP** 的一站式方案。设计目标：一步到位（方案 C：MCP 走 settings 动态挂载 + 插件/skill 走 cordis.patch.yml 文件编辑），但分层交付、可验证、可回滚。
 >
 > **v2（2026-08-22）**：按 `AUDIT.md` 审计结论修订 —— 新增 V-RPC 前置验证、MCP 改 mutate-only 写路径、Skills 机制纠正为 frontmatter 开关、`!!js` 保护、bundle 行只读。
+>
+> **后续演进（见 git log）**：扩展中心自设置弹窗迁至主界面 sidebar.footer 入口 + shell.overlay 全屏管理页（`settings.section` 不再使用）；Skills 移除模板新增、改为 SKILL.md 全文编辑-保存；新增 bundles 安装管理（`listBundles`/`installBundle`/`removeBundle`）。表格数字为 v2 时点快照，当前测试为 46/46。
 
 ## 0. 头部总表（做完一项勾一项）
 
 | # | 阶段 | 任务 | 状态 | 负责人 | 备注 |
 |---|------|------|------|--------|------|
-| 0 | 文档 | 设计文档定稿 + 审计修订 | ☑ | 大鱼 | v2；AUDIT.md 全部 P0/P1 已消化 |
-| V | 验证 | **V-RPC 前置门**：静态 Bundle Client→Host 通道 | ☑ | 大鱼 | 定案方案 A：`ctx.webServer.register` /api 路由，见 §4.3 |
-| 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☑ | 大鱼 | build 全绿；client 5.2kb envelope✓ host ESM✓ |
-| 2 | MCP | Host `mcp-center` settings namespace + schemastery schema（secret 隔离） | ☑ | 大鱼 | ⚠️弃用union建模→扁平object（redact walker不下钻union）；redact/validate实测通过 |
-| 3 | MCP | Host isolate realm 动态挂载 `dsh-mcp-client`（复用其导出 apply/Config）+ watch 重建 + 实时状态徽标 | ☑ | 大鱼 | mock ctx 冒烟过：挂载/disabled跳过/计数/dispose ✓ |
-| 4 | 文件 | Host RPC `listRows/addRow/removeRow/updateRow/toggleRow/writePatch` + **插件增删改查** + contentHash 围栏 + `!!js` 行保护 | ☑ | 大鱼 | 结构感知 insert/group；18/18 单测过 |
-| 5 | 文件 | Skill RPC：多根聚合扫描 / frontmatter 开关 / 删除(越界防护) / 模板新增 | ☑ | 大鱼 | 28/28 单测过；平铺.md id 修复 |
-| 6 | Client | `settings.section id=config-center` 注册 + 内部三 Tabs 壳（Plugins/Skills/MCP） | ☐ | 大鱼 | Slot: settings.section |
-| 7 | Client | MCP Tab：**全部写走 mcpMutate pathOp（P0-2）** + SecretField + live 保存 + dirty/invalid/saving 状态机 | ☑ | 大鱼 | scope 只读渲染；探活/停用/删除确认齐备 |
-| 8 | Client | Plugins Tab：表格 **(增/删/改/启用开关/行内 JSON 编辑)** + 校验高亮 + 重启黄条 + bundle/base 行只读展示 | ☑ | 大鱼 | 扁平视图+来源标注；expectedHash 围栏接入 |
-| 9 | Client | Skills Tab：多根列表 + frontmatter 开关 + 详情抽屉 + 模板新增 | ☑ | 大鱼 | 只读根禁写；热生效提示 |
-| 10 | 安全 | Secret redact / mutate(pathOp) / 危险操作二次确认 / 删除路径逃逸防护 | ☑ | 大鱼 | 修复 secret 空值覆盖 bug（留空=保持）；清单全过 |
-| T | 测试 | node --test：patch-editor/skills-editor/host-RPC 集成（真 HTTP 栈） | ☑ | 大鱼 | 32/32 通过 |
-| 11 | 验证 | 本地终验（build/32测试/bundle结构/导出完整性）☑ 大鱼已完成；**真机挂载冒烟由发哥按 README 执行** | ☐ | 发哥 | README 验证清单四步 |
-| 12 | 文档 | README(安装步骤/验证清单/安全设计/回滚) | ☑ | 大鱼 | 截图待真机安装后补 |
+| 0 | 文档 | 设计文档定稿 + 审计修订 | ☑ | 实施方 | v2；AUDIT.md 全部 P0/P1 已消化 |
+| V | 验证 | **V-RPC 前置门**：静态 Bundle Client→Host 通道 | ☑ | 实施方 | 定案方案 A：`ctx.webServer.register` /api 路由，见 §4.3 |
+| 1 | 宿主 | Bundle 骨架 + package.json dsh.client 声明 + lib/client.js 空壳 | ☑ | 实施方 | build 全绿；client 5.2kb envelope✓ host ESM✓ |
+| 2 | MCP | Host `mcp-center` settings namespace + schemastery schema（secret 隔离） | ☑ | 实施方 | ⚠️弃用union建模→扁平object（redact walker不下钻union）；redact/validate实测通过 |
+| 3 | MCP | Host isolate realm 动态挂载 `dsh-mcp-client`（复用其导出 apply/Config）+ watch 重建 + 实时状态徽标 | ☑ | 实施方 | mock ctx 冒烟过：挂载/disabled跳过/计数/dispose ✓ |
+| 4 | 文件 | Host RPC `listRows/addRow/removeRow/updateRow/toggleRow/writePatch` + **插件增删改查** + contentHash 围栏 + `!!js` 行保护 | ☑ | 实施方 | 结构感知 insert/group；18/18 单测过 |
+| 5 | 文件 | Skill RPC：多根聚合扫描 / frontmatter 开关 / 删除(越界防护) / 模板新增 | ☑ | 实施方 | 28/28 单测过；平铺.md id 修复 |
+| 6 | Client | `settings.section id=config-center` 注册 + 内部三 Tabs 壳（Plugins/Skills/MCP） | ☐ | 实施方 | Slot: settings.section |
+| 7 | Client | MCP Tab：**全部写走 mcpMutate pathOp（P0-2）** + SecretField + live 保存 + dirty/invalid/saving 状态机 | ☑ | 实施方 | scope 只读渲染；探活/停用/删除确认齐备 |
+| 8 | Client | Plugins Tab：表格 **(增/删/改/启用开关/行内 JSON 编辑)** + 校验高亮 + 重启黄条 + bundle/base 行只读展示 | ☑ | 实施方 | 扁平视图+来源标注；expectedHash 围栏接入 |
+| 9 | Client | Skills Tab：多根列表 + frontmatter 开关 + 详情抽屉 + 模板新增 | ☑ | 实施方 | 只读根禁写；热生效提示 |
+| 10 | 安全 | Secret redact / mutate(pathOp) / 危险操作二次确认 / 删除路径逃逸防护 | ☑ | 实施方 | 修复 secret 空值覆盖 bug（留空=保持）；清单全过 |
+| T | 测试 | node --test：patch-editor/skills-editor/host-RPC 集成（真 HTTP 栈） | ☑ | 实施方 | 32/32 通过 |
+| 11 | 验证 | 本地终验（build/32测试/bundle结构/导出完整性）☑ 实施方已完成；**真机挂载冒烟由维护者按 README 执行** | ☐ | 维护者 | README 验证清单四步 |
+| 12 | 文档 | README(安装步骤/验证清单/安全设计/回滚) | ☑ | 实施方 | 截图待真机安装后补 |
 
 > 勾选规则：`☐` 未开始 / `◐` 进行中 / `☑` 已完成。每次完成一项直接改本表。
 
-> **交付约束（2026-08-22 发哥指令）**：大鱼**不执行安装、不重启 dsh** —— 交付项目 + git 仓库（逐项 commit 可回滚）+ README 操作步骤；真机挂载与冒烟由发哥按文档执行。
+> **交付约束**：插件开发不执行安装、不重启 dsh —— 交付项目 + git 仓库（逐项 commit 可回滚）+ README 操作步骤；真机挂载与冒烟由维护者按文档执行。
 >
-> **Git 规范**：项目根为独立 git 仓库；每完成总表一项即 `git commit -m "T<n>: <任务名>"`；`.gitignore` 排除 `node_modules/`、`lib/`（可由 `pnpm build` 重建）；回滚用 `git revert <commit>`。
+> **Git 规范**：项目根为独立 git 仓库；每完成总表一项即 `git commit -m "T<n>: <任务名>"`；`.gitignore` 仅排除 `node_modules/`，构建产物 `lib/` 随版本提交（clone 即装即用）；回滚用 `git revert <commit>`。
 
 ---
 
@@ -321,4 +323,4 @@ curl -s http://127.0.0.1:3080/plugins/dsh-config-center/client.js | head
 
 ---
 
-> 下一步：发哥确认本设计后，大鱼按 T1→T12 顺序逐项实施，每完成一项更新头部总表并演示验证。
+> 下一步：设计确认后按 T1→T12 顺序逐项实施，每完成一项更新头部总表并演示验证。

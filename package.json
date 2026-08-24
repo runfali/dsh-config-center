@@ -1,7 +1,7 @@
 {
   "name": "dsh-config-center",
   "version": "0.1.0",
-  "description": "DeepSeek Harness 扩展中心：在 WebUI 设置中统一管理 插件 / Skill / MCP 的增删改查（插件与 Skill 走文件落盘需重启或热生效，MCP 走 settings 动态挂载即时生效）。",
+  "description": "Extension center for DeepSeek Harness: manage plugins, skills and MCP servers from the WebUI — bundle install/remove, cordis.patch.yml row CRUD, SKILL.md editing, live MCP mounting. Zero-intrusion bundle plugin, no dsh source changes.",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -14,7 +14,8 @@
     "lib",
     "tests",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "license": "MIT",
   "keywords": [
