@@ -137,7 +137,7 @@ test("listSkills aggregates across roots with provenance", async (t) => {
   })
 })
 
-// ---- SKILL.md 编辑-保存（发哥指令：不做新增，只做编辑保存）----
+// ---- SKILL.md 编辑-保存（不做新增，只做编辑保存）----
 import { createHash } from "node:crypto"
 import { readSkillFile, writeSkillFile } from "../src/skills-editor.js"
 

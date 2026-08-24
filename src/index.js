@@ -358,7 +358,7 @@ export function apply(ctx, config) {
       if (!root) throw new Error(`unknown root "${args?.rootId}"`)
       return removeSkill(root, { id: String(args?.id), source: args?.source })
     })
-    // SKILL.md 编辑-保存（发哥：skill 子目录/脚本多，不做新增，只做文件编辑）
+    // SKILL.md 编辑-保存（skill 子目录/脚本多，不做新增，只做文件编辑）
     reg("readSkillFile", async (args) => {
       const root = findRoot(String(args?.rootId))
       if (!root) throw new Error(`unknown root "${args?.rootId}"`)

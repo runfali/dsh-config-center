@@ -1,7 +1,7 @@
 /**
  * dsh-config-center — 扩展中心 浏览器半边
  *
- * 主界面直达（发哥指令）：左侧栏底部 Settings 旁的「扩展管理中心」入口
+ * 主界面直达：左侧栏底部 Settings 旁的「扩展管理中心」入口
  * （sidebar.footer.action，与 Cordis 面板同款官方挂点）→ 点击在 shell.overlay
  * 打开全屏管理页；不再注册 settings.section（设置弹窗内样式不协调）。
  *
@@ -24,22 +24,22 @@ export const inject = ["slots", "settingsScope"]
 /** 模块级开合状态（footer 按钮 ↔ shell.overlay 面板的共享源） */
 const overlayStore = {
   open: false,
-  listeners: new Set(),
+  listeners: new Set<(v: boolean) => void>(),
   getSnapshot() {
     return this.open
   },
   subscribe(fn) {
     this.listeners.add(fn)
-    return () => this.listeners.delete(fn)
+    return () => { this.listeners.delete(fn) }
   },
   setOpen(v) {
     if (this.open === v) return
     this.open = v
-    this.listeners.forEach((fn) => fn())
+    this.listeners.forEach((fn) => fn(this.open))
   },
 }
 
-function useOverlayOpen() {
+function useOverlayOpen(): [boolean, (v: boolean) => void] {
   const [open, setOpen] = useState(() => overlayStore.getSnapshot())
   useEffect(() => overlayStore.subscribe(() => setOpen(overlayStore.getSnapshot())), [])
   return [open, (v) => overlayStore.setOpen(v)]

@@ -2,7 +2,7 @@
  * Skills Tab — 多根聚合列表 + frontmatter 开关（热生效）+ SKILL.md 编辑-保存
  * P1-3 约定：开关 = SKILL.md frontmatter 的 disable-model-invocation /
  * user-invocable；写操作仅限 writable 根（user-dsh）。
- * 发哥指令：不做新增（skill 子目录/脚本多，新增不好操作）；SKILL.md 必须可编辑-保存。
+ * 设计约束：不做新增（skill 子目录/脚本多，新增不好操作）；SKILL.md 必须可编辑-保存。
  */
 import React, { useEffect, useState } from "react"
 import { confirmDialog, errText, rpc } from "./rpc.js"

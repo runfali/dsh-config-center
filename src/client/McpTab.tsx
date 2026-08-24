@@ -203,7 +203,7 @@ function pairsToOps(basePath, originalPairs, pairs, configuredKeys) {
 
 function Editor({ editing, existing, onClose, onSaved }) {
   const isNew = editing.mode === "create"
-  const [draft, setDraft] = useState(() =>
+  const [draft, setDraft] = useState<any>(() =>
     editing.mode === "edit"
       ? {
           ...editing.draft,
@@ -215,7 +215,7 @@ function Editor({ editing, existing, onClose, onSaved }) {
         }
       : editing.draft,
   )
-  const [invalid, setInvalid] = useState({})
+  const [invalid, setInvalid] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
 
@@ -247,7 +247,7 @@ function Editor({ editing, existing, onClose, onSaved }) {
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }))
 
   async function save() {
-    const problems = {}
+    const problems: Record<string, string> = {}
     if (!SERVER_NAME_RE.test(draft.serverName)) problems.serverName = "需匹配 [A-Za-z0-9_-]{1,32}"
     else if (isNew && existing.includes(draft.serverName)) problems.serverName = "名称已存在"
     if (draft.transport === "stdio" && !String(draft.command ?? "").trim()) problems.command = "stdio 必须填写 command"

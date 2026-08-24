@@ -1,9 +1,9 @@
 /**
  * Plugins Tab — 真正的插件管理：bundles（package.json）为主，patch 覆盖为辅
  * - Bundles：等价于 `dsh plugin --profile web add <spec>` / remove
- *   spec 支持三种形态（发哥原话）：
+ *   spec 支持三种形态：
  *     dsh-better-sidebar@0.15.0
- *     /data/dsh-workspace/dsh-config-center
+ *     ~/dev/dsh-config-center（本地路径）
  *     github:HanaAyane/dsh-reasoning-effort
  * - Patch：cordis.patch.yml 的 insert/配置覆盖（modlens 等），保留原有增删改
  */
@@ -90,7 +90,7 @@ export function PluginsTab({ onNeedsRestart, onCommentLost }) {
           <span className="cc-hint">{bundles ? `${bundles.bundles.length} 个 · ${bundles.profileDir}` : "加载中…"}</span>
         </div>
 
-        {/* 安装表单：单字段 spec，示例即发哥三种写法 */}
+        {/* 安装表单：单字段 spec，示例即三种写法 */}
         <div className="cc-card" style={{ marginBottom: 10 }}>
           <Field
             label="安装插件 — 填入与 CLI 相同的 <spec>"
@@ -109,7 +109,7 @@ export function PluginsTab({ onNeedsRestart, onCommentLost }) {
           </Field>
           <div className="cc-hint" style={{ lineHeight: 1.6 }}>
             示例：<code>dsh-better-sidebar@0.15.0</code>（npm 带版本）<br />
-            <code>/data/dsh-workspace/dsh-config-center</code>（本地绝对路径）<br />
+            <code>~/dev/dsh-config-center</code>（本地路径）<br />
             <code>github:HanaAyane/dsh-reasoning-effort</code>（GitHub，可加 #分支）
           </div>
         </div>

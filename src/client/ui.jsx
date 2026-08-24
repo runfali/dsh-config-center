@@ -1,7 +1,7 @@
 /** 共享 UI 原语：字段、徽标、按钮、抽屉（对齐官方 fields.module.css 视觉） */
 import React, { useState } from "react"
 
-export function Field({ label, hint, invalid, invalidText, children }) {
+export function Field({ label, hint = undefined, invalid = undefined, invalidText = undefined, children }) {
   return (
     <div className="cc-field">
       <div className="cc-field-head">
@@ -13,7 +13,7 @@ export function Field({ label, hint, invalid, invalidText, children }) {
   )
 }
 
-export function TextInput({ value, onChange, placeholder, invalid, type = "text" }) {
+export function TextInput({ value, onChange, placeholder = undefined, invalid = undefined, type = "text" }) {
   return (
     <input
       className={"cc-input" + (invalid ? " cc-input-invalid" : "")}
@@ -43,7 +43,7 @@ export function StatusBadge({ state, tools }) {
   )
 }
 
-export function Button({ kind = "secondary", disabled, onClick, children }) {
+export function Button({ kind = "secondary", disabled = false, onClick, children }) {
   return (
     <button
       type="button"
