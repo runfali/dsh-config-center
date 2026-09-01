@@ -217,16 +217,20 @@ export async function readSkillFile(spec, target, maxBytes = 1 << 20) {
 }
 
 /**
- * 保存 SKILL.md 全文。expectedHash 非空时做并发围栏（他人先改过则拒绝）；
+ * 保存 SKILL.md 全文。expectedHash 为并发围栏（他人先改过则拒绝）；
  * 原子替换写入，dsh-skill-filesystem 的 watcher 自动热生效。
+ * 默认强制围栏：expectedHash 缺失/空一律按当前文件 hash 校验后再写，
+ * 仅显式 force=true 才跳过（安全审计 P2-2，2026-09-01：原 null bypass 会静默覆盖并发编辑）。
  * @returns {{ok:true, hash:string}} 新内容 hash（供下一轮编辑围栏）
  */
-export async function writeSkillFile(spec, target, content, expectedHash) {
+export async function writeSkillFile(spec, target, content, expectedHash, force = false) {
   const file = await skillFilePath(spec, target)
   const current = await readFile(file)
   const currentHash = createHash("sha256").update(current).digest("hex").slice(0, 16)
-  if (expectedHash !== null && expectedHash !== undefined && expectedHash !== "" && expectedHash !== currentHash) {
-    throw Object.assign(new Error("file changed since you opened it — reload and re-apply"), { status: 409 })
+  if (!force) {
+    if (expectedHash === null || expectedHash === undefined || expectedHash === "" || expectedHash !== currentHash) {
+      throw Object.assign(new Error("file changed since you opened it — reload and re-apply"), { status: 409 })
+    }
   }
   const body = Buffer.from(String(content ?? ""), "utf8")
   if (body.length > 1 << 20) throw new Error("content exceeds 1 MiB limit")

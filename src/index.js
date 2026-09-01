@@ -16,6 +16,9 @@
  */
 import z from "@deepseek-ai/schemastery"
 import os from "node:os"
+import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import { dirname, join } from "node:path"
 // dsh 0.1.2-alpha.3：settingsNamespace() brand 辅助已从 dsh-settings 移除；
 // 命名空间在 settings.register/installSection 处校验（小写连字符标识符）。
 import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
@@ -59,6 +62,19 @@ export {
 
 export const name = "config-center"
 export const inject = ["webServer", "settings"]
+
+/** 插件版本（读自 package.json，ping 回显用）。 */
+const VERSION = (() => {
+  try {
+    return (
+      JSON.parse(
+        readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8"),
+      ).version || "0.0.0"
+    )
+  } catch {
+    return "0.0.0"
+  }
+})()
 
 /** patch 写操作串行队列（P2-7 并发保护的一半；另一半是 contentHash 围栏） */
 let patchQueue = Promise.resolve()
@@ -254,7 +270,7 @@ export function apply(ctx, config) {
     const reg = (method, handler) => handlers.push(registerRpc(ctx, method, handler))
     reg("ping", async () => ({
       name: "dsh-config-center",
-      version: "0.1.0",
+      version: VERSION,
       ts: Date.now(),
       patchPath: current().patchPath,
     }))
@@ -373,7 +389,9 @@ export function apply(ctx, config) {
         root,
         { id: String(args?.id), source: args?.source },
         String(args?.content ?? ""),
-        args?.expectedHash === undefined ? null : String(args?.expectedHash),
+        // 围栏默认强制：undefined/null/空 不再绕过（安全审计 P2-2），仅显式 force 跳过
+        args?.expectedHash === undefined || args?.expectedHash === null ? "" : String(args?.expectedHash),
+        args?.force === true,
       )
     })
 

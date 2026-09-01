@@ -165,12 +165,16 @@ test("readSkillFile returns content+hash; writeSkillFile round-trips with hash f
   })
 })
 
-test("writeSkillFile: null expectedHash bypasses fence (force save)", async (t) => {
+test("writeSkillFile: null expectedHash now rejected (fence hardened), force=true bypasses", async (t) => {
   await withTempDir(t, async (dir) => {
     await mkdir(join(dir, "s1"), { recursive: true })
     await writeFile(join(dir, "s1", "SKILL.md"), "A")
     const spec = { id: "t", root: dir, writable: true }
-    const w = await writeSkillFile(spec, { id: "s1", source: "bundle" }, "B", null)
+    // P2-2 修复（2026-09-01）：null/空 hash 不再静默绕过围栏
+    await assert.rejects(() => writeSkillFile(spec, { id: "s1", source: "bundle" }, "B", null), /file changed/)
+    await assert.rejects(() => writeSkillFile(spec, { id: "s1", source: "bundle" }, "B", ""), /file changed/)
+    // 显式 force=true 才跳过
+    const w = await writeSkillFile(spec, { id: "s1", source: "bundle" }, "B", null, true)
     assert.equal(w.ok, true)
     assert.equal(await readFile(join(dir, "s1", "SKILL.md"), "utf8"), "B")
   })
