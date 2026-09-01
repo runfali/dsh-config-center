@@ -16,7 +16,8 @@
  */
 import z from "@deepseek-ai/schemastery"
 import os from "node:os"
-import { settingsNamespace } from "@deepseek-ai/dsh-settings"
+// dsh 0.1.2-alpha.3：settingsNamespace() brand 辅助已从 dsh-settings 移除；
+// 命名空间在 settings.register/installSection 处校验（小写连字符标识符）。
 import { McpCenterSchema, validateMcpDoc } from "./mcp-schema.js"
 import { createSupervisor } from "./mcp-supervisor.js"
 import {
@@ -75,8 +76,9 @@ function enqueuePnpm(job) {
   pnpmQueue = run.catch(() => {})
   return run
 }
-/** settings namespace：MCP server 配置（T2） */
-export const MCP_SETTINGS_NS = settingsNamespace("mcp-center")
+/** settings namespace：MCP server 配置（T2）。
+ * dsh 0.1.2-alpha 起 settingsNamespace() brand 辅助已移除，改用纯字符串。 */
+export const MCP_SETTINGS_NS = "mcp-center"
 
 export const Config = z.object({
   /** cordis.patch.yml 绝对路径；空 = 从 profile 目录自动解析 */
