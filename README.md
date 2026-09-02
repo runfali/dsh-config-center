@@ -20,7 +20,9 @@ One entry point — **Extension Center** reachable from the left sidebar footer 
 
 ## Requirements
 
-- DeepSeek Harness `dsh` (`web` profile), Node.js `>= 22`
+- DeepSeek Harness `dsh` **>= 0.1.2-alpha.3** (`web` profile; verified on 0.1.2-alpha.4), Node.js `^22.19.0 || >=24.0.0`
+- Runtime dependencies: **none** — all seven peers (`@deepseek-ai/cordis-plugin-include`, `@deepseek-ai/dsh-mcp-client`, `@deepseek-ai/dsh-settings`, `@deepseek-ai/schemastery`, `@modelcontextprotocol/sdk`, `js-yaml`, `react`) are provided by the dsh host install itself
+- The plugin manages bundles/skills/MCP servers on your behalf: it may spawn package-manager child processes and launch the MCP server processes you configure; settings persistence is handled by the dsh settings service
 - The browser bundle ships prebuilt in `lib/`, so a clone installs as-is
 
 ## Install / Uninstall

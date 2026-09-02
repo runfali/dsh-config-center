@@ -18,6 +18,8 @@
 
 ## 安装 / 卸载
 
+> 环境要求：dsh **≥ 0.1.2-alpha.3**（`web` profile，已在 0.1.2-alpha.4 实测），Node.js `^22.19.0 || >=24.0.0`；运行时依赖为**零**——七个 peer 包全部由 dsh 宿主自身提供。
+
 ```bash
 # 1) 获取插件（仓库已含构建产物 lib/，clone 即装即用）
 git clone https://github.com/runfali/dsh-config-center.git
